@@ -1,0 +1,52 @@
+<resources>
+    <string name="app_name">Expense Tracker</string>
+    
+    <!-- Permission Rationales -->
+    <string name="sms_permission_title">SMS Permission Required</string>
+    <string name="sms_permission_message">This app reads your bank SMS messages to automatically track your expenses. No data is stored outside your device.</string>
+    <string name="sms_permission_grant">Grant Permission</string>
+    <string name="sms_permission_deny">Not Now</string>
+    
+    <!-- Categories -->
+    <string name="category_food">Food &amp; Dining</string>
+    <string name="category_travel">Travel</string>
+    <string name="category_shopping">Shopping</string>
+    <string name="category_utilities">Utilities</string>
+    <string name="category_rent">Rent</string>
+    <string name="category_subscriptions">Subscriptions</string>
+    <string name="category_entertainment">Entertainment</string>
+    <string name="category_healthcare">Healthcare</string>
+    <string name="category_transfers">Transfers</string>
+    <string name="category_income">Income</string>
+    <string name="category_other">Other</string>
+    
+    <!-- Screens -->
+    <string name="home">Home</string>
+    <string name="timeline">Timeline</string>
+    <string name="insights">Insights</string>
+    <string name="settings">Settings</string>
+    
+    <!-- Home Screen -->
+    <string name="today_inflow">Today\'s Inflow</string>
+    <string name="today_outflow">Today\'s Outflow</string>
+    <string name="net_balance">Net Balance</string>
+    
+    <!-- Period Labels -->
+    <string name="period_day">Day</string>
+    <string name="period_week">Week</string>
+    <string name="period_month">Month</string>
+    <string name="period_year">Year</string>
+    
+    <!-- Transaction Types -->
+    <string name="debit">Debit</string>
+    <string name="credit">Credit</string>
+    
+    <!-- Settings -->
+    <string name="theme">Theme</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_system">System Default</string>
+    <string name="dynamic_color">Dynamic Color</string>
+    <string name="gemini_api_key">Gemini API Key</string>
+    <string name="about">About</string>
+</resources>

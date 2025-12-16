@@ -1,0 +1,28 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Wallet/receipt icon -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,30 L74,30 C76,30 78,32 78,34 L78,74 C78,76 76,78 74,78 L34,78 C32,78 30,76 30,74 L30,34 C30,32 32,30 34,30 L54,30 Z"/>
+    
+    <path
+        android:fillColor="#1E88E5"
+        android:pathData="M38,42 L70,42 L70,46 L38,46 Z"/>
+    
+    <path
+        android:fillColor="#1E88E5"
+        android:pathData="M38,52 L60,52 L60,56 L38,56 Z"/>
+    
+    <path
+        android:fillColor="#1E88E5"
+        android:pathData="M38,62 L55,62 L55,66 L38,66 Z"/>
+    
+    <!-- Rupee symbol -->
+    <path
+        android:fillColor="#1E88E5"
+        android:pathData="M62,58 L66,58 L66,70 L70,70 L70,74 L62,74 L62,68 L58,68 L62,62 L62,58 Z"/>
+</vector>
