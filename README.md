@@ -10,6 +10,12 @@ A **intelligent, privacy-first** personal finance app for Android that automatic
 > **🔒 Zero Data Leakage:** All processing happens 100% offline on your device. Your financial data never leaves your phone.
 
 ---
+## UI
+<img src="https://github.com/user-attachments/assets/57408ef5-dc9d-4863-81a1-ab8348baa784" width="160" />
+<img src="https://github.com/user-attachments/assets/5cbbe6d9-6b3e-4a82-8824-12b70696f011" width="160" />
+<img src="https://github.com/user-attachments/assets/7239a998-32dd-4cd1-8b35-270b948895eb" width="160" />
+<img src="https://github.com/user-attachments/assets/203bfdde-dcee-4d20-9155-c822b575769b" width="160" />
+<img src="https://github.com/user-attachments/assets/c0a01eae-a8f9-4377-b189-811f970bfa21" width="160" />
 
 ## 🚀 Key Features
 
