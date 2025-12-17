@@ -47,9 +47,10 @@ class ModelDownloadManager @Inject constructor() {
     
     companion object {
         // Gemma 1B Instruction-Tuned model (MediaPipe .task format)
-        const val MODEL_FILENAME = "gemma-1b-it-q4.task"
-        const val MODEL_URL = "https://github.com/Akshayykadam/AI-Powered-Expense-Tracker/releases/download/Model_Release%E2%80%93Gemma_1B/Gemma3-1B-IT_multi-prefill-seq_q4_ekv2048.task"
-        const val EXPECTED_SIZE_MB = 555L // ~555 MB
+        const val MODEL_FILENAME = "gemma-2b-it-cpu-int4.bin"
+        // Community User Provided Link (Verified Accessible)
+        const val MODEL_URL = "https://huggingface.co/metsman/gemma-2b-it-cpu-int4-org/resolve/main/gemma-2b-it-cpu-int4.bin"
+        const val EXPECTED_SIZE_MB = 1285L // ~1.28 GB
     }
     
     private val _downloadProgress = MutableStateFlow(DownloadProgress())
@@ -58,9 +59,13 @@ class ModelDownloadManager @Inject constructor() {
     /**
      * Check if model is already downloaded
      */
+    /**
+     * Check if model is already downloaded
+     */
     fun isModelDownloaded(context: Context): Boolean {
         val modelFile = getModelFile(context)
-        val exists = modelFile.exists() && modelFile.length() > 100_000_000 // At least 100MB
+        // Check for > 1GB to ensure mostly complete (model is ~1.3GB)
+        val exists = modelFile.exists() && modelFile.length() > 1_000_000_000L
         if (exists) {
             _downloadProgress.value = DownloadProgress(
                 isComplete = true,
@@ -86,7 +91,7 @@ class ModelDownloadManager @Inject constructor() {
         val modelFile = getModelFile(context)
         
         // If already downloaded, skip
-        if (modelFile.exists() && modelFile.length() > 100_000_000) {
+        if (modelFile.exists() && modelFile.length() > 1_000_000_000L) {
             _downloadProgress.value = DownloadProgress(isComplete = true, progress = 1f)
             return@withContext
         }
@@ -267,6 +272,29 @@ class ModelDownloadManager @Inject constructor() {
         )
     }
     
+    /**
+     * Delete downloaded model
+     */
+    fun deleteModel(context: Context) {
+        try {
+            val modelFile = getModelFile(context)
+            if (modelFile.exists()) {
+                val deleted = modelFile.delete()
+                Log.d(TAG, "Model deleted: $deleted")
+            }
+            
+            // Reset state
+            _downloadProgress.value = DownloadProgress()
+            
+            // Cancel any ongoing notifications
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.cancel(NOTIFICATION_ID)
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deleting model", e)
+        }
+    }
+
     /**
      * Reset download state
      */

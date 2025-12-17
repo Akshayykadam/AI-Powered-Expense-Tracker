@@ -206,7 +206,7 @@ fun ModelDownloadCard(
                     Spacer(modifier = Modifier.height(8.dp))
                     
                     Text(
-                        text = "~555 MB • One-time download • Background",
+                        text = "~1.2 GB • One-time download • Background",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )

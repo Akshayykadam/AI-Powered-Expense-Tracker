@@ -17,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sms
@@ -54,6 +55,7 @@ fun HomeScreen(
     val downloadProgress by viewModel.downloadProgress.collectAsState()
     val context = LocalContext.current
     
+    // ... (rest of HomeScreen start)
     // Selected time period (Week by default)
     var selectedPeriod by remember { mutableStateOf(TimePeriod.WEEK) }
     
@@ -116,10 +118,13 @@ fun HomeScreen(
                             Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                         }
                     }
+                    
                 }
             )
         }
     ) { padding ->
+        // ... (rest of Scaffold content)
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -333,42 +338,6 @@ fun HomeScreen(
                 }
             }
             
-            // DEBUG CONSOLE
-            if (uiState.debugLog.isNotEmpty()) {
-                item {
-                    var expanded by remember { mutableStateOf(false) }
-                    
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                            .clickable { expanded = !expanded },
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)
-                        )
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = "🛠️ Debug Console (Tap to ${if (expanded) "Hide" else "Show"})",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                            
-                            if (expanded) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                SelectionContainer {
-                                    Text(
-                                        text = uiState.debugLog,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
             
             // Loading indicator
             if (uiState.isLoading) {
@@ -617,5 +586,6 @@ private fun EmptyState() {
         )
     }
 }
+
 
 

@@ -25,6 +25,9 @@ fun SettingsScreen(
     val context = LocalContext.current
     var showThemeDialog by remember { mutableStateOf(false) }
     var showClearDataDialog by remember { mutableStateOf(false) }
+    var showModeChangeDialog by remember { mutableStateOf(false) }
+    var pendingAiMode by remember { mutableStateOf(false) }
+    var showDebugLogs by remember { mutableStateOf(false) }
     
     // Check model status on load
     LaunchedEffect(Unit) {
@@ -78,7 +81,7 @@ fun SettingsScreen(
                                 modifier = Modifier.size(32.dp)
                             )
                             Spacer(modifier = Modifier.width(16.dp))
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = "AI Model Ready",
                                     style = MaterialTheme.typography.titleMedium,
@@ -89,6 +92,14 @@ fun SettingsScreen(
                                     text = "Gemma 2B running locally",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = Color(0xFF2E7D32).copy(alpha = 0.8f)
+                                )
+                            }
+                            
+                            IconButton(onClick = { viewModel.deleteModel(context) }) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Delete Model",
+                                    tint = MaterialTheme.colorScheme.error
                                 )
                             }
                         }
@@ -154,7 +165,7 @@ fun SettingsScreen(
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = "Download the Gemma 2B model (~555MB) to categorize your expenses privately on your device. No data leaves your phone.",
+                                    text = "Download the Gemma 2B model (~1.2GB) to categorize your expenses privately on your device. No data leaves your phone.",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -181,7 +192,10 @@ fun SettingsScreen(
                         title = "Use Local AI",
                         subtitle = if (uiState.isAiEnabled) "Categorization active" else "Categorization paused",
                         checked = uiState.isAiEnabled,
-                        onCheckedChange = { viewModel.setAiEnabled(it) }
+                        onCheckedChange = { 
+                            pendingAiMode = it
+                            showModeChangeDialog = true
+                        }
                     )
                 }
             }
@@ -215,11 +229,21 @@ fun SettingsScreen(
             }
             
             item {
+                var versionTapCount by remember { mutableIntStateOf(0) }
+                
                 SettingsItem(
                     icon = Icons.Default.Info,
                     title = "App Version",
                     subtitle = uiState.appVersion,
-                    onClick = { }
+                    onClick = { 
+                        versionTapCount++
+                        if (versionTapCount >= 5) {
+                            showModeChangeDialog = false // Reset other dialogs
+                            // Trigger debug logs
+                            versionTapCount = 0 // Reset
+                            showDebugLogs = true
+                        }
+                    }
                 )
             }
             
@@ -312,6 +336,56 @@ fun SettingsScreen(
                 TextButton(onClick = { showClearDataDialog = false }) {
                     Text("Cancel")
                 }
+            }
+        )
+    }
+
+    // Mode Change Confirmation Dialog
+    if (showModeChangeDialog) {
+        AlertDialog(
+            onDismissRequest = { showModeChangeDialog = false },
+            icon = { Icon(Icons.Default.Warning, contentDescription = null) },
+            title = { Text(if (pendingAiMode) "Enable Local AI?" else "Disable Local AI?") },
+            text = {
+                Column {
+                    Text("Changing the processing mode requires clearing all existing data to prevent conflicts.")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "All ${uiState.transactionCount} existing transactions will be deleted.",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Do you want to proceed?")
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.setAiEnabled(pendingAiMode)
+                        showModeChangeDialog = false
+                    }
+                ) {
+                    Text("Confirm & Clear Data", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showModeChangeDialog = false }) {
+                Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showDebugLogs) {
+        val clipboard = LocalContext.current.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        DebugLogDialog(
+            log = uiState.debugLog,
+            onDismiss = { showDebugLogs = false },
+            onCopy = {
+                val clip = android.content.ClipData.newPlainText("Debug Log", uiState.debugLog)
+                clipboard.setPrimaryClip(clip)
+                showDebugLogs = false
             }
         )
     }
@@ -417,4 +491,55 @@ private fun ErrorMessage(
             }
         }
     }
+}
+
+@Composable
+private fun DebugLogDialog(
+    log: String,
+    onDismiss: () -> Unit,
+    onCopy: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Debug Logs") },
+        text = {
+            Column {
+                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false) // Allow scrolling but constrain height
+                        .heightIn(max = 300.dp)
+                ) {
+                    androidx.compose.foundation.text.selection.SelectionContainer {
+                        androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.padding(8.dp)) {
+                            item {
+                                Text(
+                                    text = log.ifEmpty { "No logs yet." },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onCopy()
+            }) {
+                Text("Copy & Close")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
 }

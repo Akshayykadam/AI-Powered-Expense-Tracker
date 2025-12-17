@@ -15,7 +15,9 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val repository: ITransactionRepository,
-    private val modelDownloadManager: ModelDownloadManager
+    private val modelDownloadManager: ModelDownloadManager,
+    private val userPreferencesRepository: com.expense.tracker.data.repository.UserPreferencesRepository,
+    private val debugLogRepository: com.expense.tracker.data.repository.DebugLogRepository
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -36,15 +38,34 @@ class SettingsViewModel @Inject constructor(
     
     init {
         loadData()
+        observePreferences()
+        observeLogs()
     }
     
+    private fun observeLogs() {
+        viewModelScope.launch {
+            debugLogRepository.logs.collect { logs ->
+                _uiState.update { it.copy(debugLog = logs) }
+            }
+        }
+    }
+    
+    private fun observePreferences() {
+        viewModelScope.launch {
+            userPreferencesRepository.isAiEnabled.collect { isEnabled ->
+                // Don't overwrite other state, just update the enabled flag
+                _uiState.update { it.copy(isAiEnabled = isEnabled) }
+            }
+        }
+    }
+
     private fun loadData() {
         viewModelScope.launch {
             repository.getTransactionCount().collect { count ->
                 _uiState.update { current ->
                     current.copy(
                         transactionCount = count,
-                        isAiEnabled = modelDownloadManager.downloadProgress.value.isComplete,
+                        // Don't force enable AI here, let preference decide or user action
                         isModelDownloaded = modelDownloadManager.downloadProgress.value.isComplete
                     )
                 }
@@ -54,12 +75,8 @@ class SettingsViewModel @Inject constructor(
     
     fun checkModelStatus(context: Context) {
         val isDownloaded = modelDownloadManager.isModelDownloaded(context)
-        _uiState.update { 
-            it.copy(
-                isModelDownloaded = isDownloaded,
-                isAiEnabled = isDownloaded
-            )
-        }
+        _uiState.update { it.copy(isModelDownloaded = isDownloaded) }
+        // Do NOT auto-enable AI just because model exists. Preference rules.
     }
     
     fun startModelDownload(context: Context) {
@@ -84,7 +101,18 @@ class SettingsViewModel @Inject constructor(
     }
     
     fun setAiEnabled(enabled: Boolean) {
-        _uiState.update { it.copy(isAiEnabled = enabled) }
+        // Clear all data when switching modes to ensure clean state
+        clearAllData()
+        viewModelScope.launch {
+            userPreferencesRepository.setAiEnabled(enabled)
+        }
+    }
+    
+    fun deleteModel(context: Context) {
+        // First disable AI to be safe
+        setAiEnabled(false)
+        modelDownloadManager.deleteModel(context)
+        checkModelStatus(context)
     }
     
     fun clearAllData() {

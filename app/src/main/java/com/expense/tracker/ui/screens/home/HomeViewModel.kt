@@ -32,7 +32,9 @@ class HomeViewModel @Inject constructor(
     private val smsParser: SmsParser,
     private val merchantCategorizer: MerchantCategorizer,
     private val modelDownloadManager: ModelDownloadManager,
-    private val localAIService: LocalAIService
+    private val localAIService: LocalAIService,
+    private val userPreferencesRepository: com.expense.tracker.data.repository.UserPreferencesRepository,
+    private val debugLogRepository: com.expense.tracker.data.repository.DebugLogRepository
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -42,6 +44,37 @@ class HomeViewModel @Inject constructor(
     
     init {
         loadData()
+        observePreferences()
+    }
+    
+    private fun observePreferences() {
+        viewModelScope.launch {
+            userPreferencesRepository.isAiEnabled.collect { isEnabled ->
+                val newMode = if (isEnabled) "HYBRID" else "RULES"
+                if (_uiState.value.processingMode != newMode) {
+                     Log.d(TAG, "Preference changed, updating mode to: $newMode")
+                     _uiState.update { it.copy(processingMode = newMode) }
+                     
+                     // If mode changed to RULES, we might need to refresh if we were stuck
+                }
+            }
+        }
+    }
+    
+    // ... loadData ...
+
+    // ... checkModelStatus ...
+    
+    // ... startModelDownload ...
+    
+    fun toggleProcessingMode() {
+        // Now controlled by Settings basically, but for dev toggle in debug:
+        val currentIsAi = _uiState.value.processingMode == "HYBRID"
+        val newIsAi = !currentIsAi
+        
+        viewModelScope.launch {
+            userPreferencesRepository.setAiEnabled(newIsAi)
+        }
     }
     
     private fun loadData() {
@@ -135,13 +168,7 @@ class HomeViewModel @Inject constructor(
         }
     }
     
-    fun toggleProcessingMode() {
-        _uiState.update { current ->
-            val newMode = if (current.processingMode == "RULES") "HYBRID" else "RULES"
-            Log.d(TAG, "Switched processing mode to: $newMode")
-            current.copy(processingMode = newMode)
-        }
-    }
+    // Old toggleProcessingMode removed in favor of preference-based toggle
     
     /**
      * Clear existing data and reprocess SMS with AI
@@ -235,8 +262,8 @@ class HomeViewModel @Inject constructor(
                         
                         if (verification.isTransaction) {
                             // ... (AI success logic)
-                             val approveMsg = "✅ APPROVED (${verification.transactionType})"
-                             _uiState.update { it.copy(debugLog = it.debugLog + "\n" + approveMsg) }
+                             val approveMsg = "✅ APPROVED (${verification.transactionType})\nRAW: ${verification.rawResponse}"
+                             debugLogRepository.appendLog(approveMsg)
                              
                              val finalType = when (verification.transactionType) {
                                   "DEBIT" -> TransactionType.DEBIT
@@ -247,9 +274,9 @@ class HomeViewModel @Inject constructor(
                              validTransactions.add(aiVerifiedResult)
                         } else {
                             rejectedCount++
-                            val rejectMsg = "❌ REJECTED: ${verification.reason} (${sms.body.take(15)}..)"
+                            val rejectMsg = "❌ REJECTED: ${verification.reason} (${sms.body.take(15)}..)\nRAW: ${verification.rawResponse}"
                             if (rejectedCount <= 10) {
-                                 _uiState.update { it.copy(debugLog = it.debugLog + "\n" + rejectMsg) }
+                                 debugLogRepository.appendLog(rejectMsg)
                             }
                         }
                     }

@@ -13,7 +13,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val TAG = "LocalAIService"
-private const val MODEL_FILENAME = "gemma-1b-it-q4.task"
+private const val MODEL_FILENAME = "gemma-2b-it-cpu-int4.bin"
 
 /**
  * Classification result from local AI
@@ -49,7 +49,8 @@ data class SmsVerificationResult(
     val transactionType: String?,
     val amount: Double?,
     val confidence: Float,
-    val reason: String
+    val reason: String,
+    val rawResponse: String? = null
 )
 
 /**
@@ -150,14 +151,17 @@ class LocalAIService @Inject constructor() {
                 transactionType = null,
                 amount = null,
                 confidence = 0f,
-                reason = "Model not loaded"
+                reason = "Model not loaded",
+                rawResponse = null
             )
         }
         
         try {
             val prompt = buildSmsVerificationPrompt(smsBody)
             val response = generateResponse(prompt)
-            parseSmsVerificationResponse(response)
+            val result = parseSmsVerificationResponse(response)
+            Log.d(TAG, "Parsed Result: ${result.intent} (${result.transactionType}) - Reason: ${result.reason}")
+            result
         } catch (e: Exception) {
             Log.e(TAG, "SMS verification failed", e)
             SmsVerificationResult(
@@ -166,7 +170,8 @@ class LocalAIService @Inject constructor() {
                 transactionType = null,
                 amount = null,
                 confidence = 0f,
-                reason = "Error: ${e.message}"
+                reason = "Error: ${e.message}",
+                rawResponse = null
             )
         }
     }
@@ -195,6 +200,9 @@ class LocalAIService @Inject constructor() {
     /**
      * Generate response using MediaPipe LLM Inference
      */
+    /**
+     * Generate response using MediaPipe LLM Inference
+     */
     private fun generateResponse(prompt: String): String {
         val inference = llmInference ?: throw IllegalStateException("LLM not initialized")
         
@@ -203,7 +211,7 @@ class LocalAIService @Inject constructor() {
         // Run inference
         val response = inference.generateResponse(prompt)
         
-        Log.d(TAG, "Response: ${response.take(100)}...")
+        Log.d(TAG, "RAW AI RESPONSE: [$response]")
         return response
     }
     
@@ -339,7 +347,8 @@ Focus on: highest spend category or saving tip.<end_of_turn>
             transactionType = transactionType,
             amount = null,
             confidence = 0.85f,
-            reason = response.take(50)
+            reason = response.take(50),
+            rawResponse = response
         )
     }
     

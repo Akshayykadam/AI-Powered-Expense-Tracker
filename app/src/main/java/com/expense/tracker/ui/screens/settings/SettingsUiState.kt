@@ -12,5 +12,6 @@ data class SettingsUiState(
     val isAiEnabled: Boolean = false,         // User preference: AI on/off
     val isModelDownloaded: Boolean = false,   // Whether model is downloaded
     val transactionCount: Int = 0,
-    val appVersion: String = "1.0.0"
+    val appVersion: String = "1.0.0",
+    val debugLog: String = ""
 )
