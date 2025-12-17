@@ -13,7 +13,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val TAG = "LocalAIService"
-private const val MODEL_FILENAME = "gemma-2b-it-cpu-int4.bin"
+private const val MODEL_FILENAME = "gemma3-1b-it-int4.task"
 
 /**
  * Classification result from local AI
@@ -88,6 +88,11 @@ class LocalAIService @Inject constructor() {
      * Initialize the AI model using MediaPipe GenAI
      */
     suspend fun initialize(context: Context): Boolean = withContext(Dispatchers.IO) {
+        if (isReady()) {
+            Log.d(TAG, "AI already initialized")
+            return@withContext true
+        }
+
         val modelFile = getModelPath(context)
         if (!modelFile.exists()) {
             Log.w(TAG, "Model file not found: ${modelFile.absolutePath}")
@@ -95,13 +100,16 @@ class LocalAIService @Inject constructor() {
         }
         
         try {
+            // Double check locking if needed, but for now simple check
+            if (llmInference != null) return@withContext true
+
             modelPath = modelFile.absolutePath
             Log.d(TAG, "Loading Gemma model from: $modelPath")
             
             // Configure LLM Inference options (minimal required settings)
             val options = LlmInferenceOptions.builder()
                 .setModelPath(modelPath!!)
-                .setMaxTokens(256)
+                .setMaxTokens(1024) // Increased for better reasoning
                 .build()
             
             // Create LLM Inference instance
@@ -110,12 +118,15 @@ class LocalAIService @Inject constructor() {
             isModelLoaded = true
             Log.d(TAG, "✅ Gemma model loaded successfully via MediaPipe GenAI")
             true
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize MediaPipe GenAI", e)
+        } catch (e: Throwable) {
+            Log.e(TAG, "Failed to initialize MediaPipe GenAI: ${e.message}", e)
             isModelLoaded = false
+            llmInference = null
             false
         }
     }
+    
+    // ...
     
     /**
      * Classify a transaction using local AI
@@ -200,19 +211,22 @@ class LocalAIService @Inject constructor() {
     /**
      * Generate response using MediaPipe LLM Inference
      */
-    /**
-     * Generate response using MediaPipe LLM Inference
-     */
     private fun generateResponse(prompt: String): String {
-        val inference = llmInference ?: throw IllegalStateException("LLM not initialized")
-        
-        Log.d(TAG, "Generating response for prompt: ${prompt.take(100)}...")
-        
-        // Run inference
-        val response = inference.generateResponse(prompt)
-        
-        Log.d(TAG, "RAW AI RESPONSE: [$response]")
-        return response
+        try {
+            val inference = llmInference ?: throw IllegalStateException("LLM not initialized")
+            
+            Log.d(TAG, "Generating response for prompt: ${prompt.take(100)}...")
+            
+            // Run inference
+            val response = inference.generateResponse(prompt)
+            
+            Log.d(TAG, "RAW AI RESPONSE: [$response]")
+            return response
+        } catch (e: Throwable) {
+             Log.e(TAG, "LLM Inference failed", e)
+             // Propagate as runtime exception to be caught by caller
+             throw RuntimeException("Inference failed: ${e.message}")
+        }
     }
     
     /**

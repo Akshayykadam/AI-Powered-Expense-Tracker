@@ -46,11 +46,11 @@ data class DownloadProgress(
 class ModelDownloadManager @Inject constructor() {
     
     companion object {
-        // Gemma 1B Instruction-Tuned model (MediaPipe .task format)
-        const val MODEL_FILENAME = "gemma-2b-it-cpu-int4.bin"
-        // Community User Provided Link (Verified Accessible)
-        const val MODEL_URL = "https://huggingface.co/metsman/gemma-2b-it-cpu-int4-org/resolve/main/gemma-2b-it-cpu-int4.bin"
-        const val EXPECTED_SIZE_MB = 1285L // ~1.28 GB
+        // Gemma3 1B Instruction-Tuned model (Official MediaPipe .task format)
+        const val MODEL_FILENAME = "gemma3-1b-it-int4.task"
+        // User's GitHub Release URL (Official litert-community model)
+        const val MODEL_URL = "https://github.com/Akshayykadam/AI-Powered-Expense-Tracker/releases/download/Model_Release%E2%80%93Gemma_1B/gemma3-1b-it-int4.task"
+        const val EXPECTED_SIZE_MB = 555L // ~555 MB
     }
     
     private val _downloadProgress = MutableStateFlow(DownloadProgress())
@@ -64,8 +64,8 @@ class ModelDownloadManager @Inject constructor() {
      */
     fun isModelDownloaded(context: Context): Boolean {
         val modelFile = getModelFile(context)
-        // Check for > 1GB to ensure mostly complete (model is ~1.3GB)
-        val exists = modelFile.exists() && modelFile.length() > 1_000_000_000L
+        // Check for > 100MB to ensure file is substantial
+        val exists = modelFile.exists() && modelFile.length() > 100_000_000L
         if (exists) {
             _downloadProgress.value = DownloadProgress(
                 isComplete = true,
@@ -91,7 +91,7 @@ class ModelDownloadManager @Inject constructor() {
         val modelFile = getModelFile(context)
         
         // If already downloaded, skip
-        if (modelFile.exists() && modelFile.length() > 1_000_000_000L) {
+        if (modelFile.exists() && modelFile.length() > 100_000_000L) {
             _downloadProgress.value = DownloadProgress(isComplete = true, progress = 1f)
             return@withContext
         }

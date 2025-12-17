@@ -21,6 +21,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 private const val TAG = "HomeViewModel"
@@ -120,28 +122,62 @@ class HomeViewModel @Inject constructor(
     /**
      * Check if model is already downloaded
      */
+    override fun onCleared() {
+        super.onCleared()
+        localAIService.release()
+    }
+
+    /**
+     * Check if model is already downloaded
+     */
     fun checkModelStatus(context: Context) {
-        val isDownloaded = modelDownloadManager.isModelDownloaded(context)
-        _uiState.update { it.copy(isModelDownloaded = isDownloaded) }
-        
-        if (isDownloaded) {
-            // Initialize AI service
-            viewModelScope.launch {
-                val ready = localAIService.initialize(context)
-                Log.d(TAG, "AI initialization result: $ready")
+        viewModelScope.launch {
+            try {
+                val isDownloaded = modelDownloadManager.isModelDownloaded(context)
+                _uiState.update { it.copy(isModelDownloaded = isDownloaded) }
                 
-                if (ready && _uiState.value.hasSmsPermission) {
-                    Log.d(TAG, "AI ready and SMS permission granted, refreshing...")
-                    // Use refreshSms to handle mode checks properly
-                    refreshSms(context)
+                if (isDownloaded) {
+                    // Start AI only if explicitly in HYBRID mode
+                    if (_uiState.value.processingMode == "HYBRID") {
+                        val ready = localAIService.initialize(context)
+                        Log.d(TAG, "AI initialization result: $ready")
+                        
+                        if (ready && _uiState.value.hasSmsPermission) {
+                            debugLogRepository.appendLog("AI initialized successfully. Starting SMS processing...")
+                            refreshSms(context)
+                        } else if (!ready) {
+                             val errorMsg = "AI failed to initialize. Check model file."
+                             Log.e(TAG, errorMsg)
+                             debugLogRepository.appendLog("ERROR: $errorMsg")
+                             _uiState.update { it.copy(error = errorMsg) }
+                             // Don't auto-disable - let user retry
+                        }
+                    } else {
+                        // Rules mode: Skip AI Init
+                         Log.d(TAG, "Model ready but in RULES mode. Skipping AI init.")
+                         if (_uiState.value.hasSmsPermission) {
+                             refreshSms(context)
+                         }
+                    }
+                } else {
+                    // Model NOT downloaded
+                    if (_uiState.value.hasSmsPermission && _uiState.value.processingMode == "RULES") {
+                         Log.d(TAG, "Model not present, but in RULES mode. Starting Rule-based processing.")
+                         refreshSms(context)
+                    } else if (_uiState.value.processingMode == "HYBRID") {
+                        // In Hybrid but no model? Should revert to rules or prompt download.
+                        // For stability, let's revert to rules if model is missing but referenced as Hybrid
+                         Log.w(TAG, "In HYBRID mode but model missing. Reverting to RULES.")
+                         userPreferencesRepository.setAiEnabled(false)
+                         _uiState.update { it.copy(processingMode = "RULES") }
+                         refreshSms(context)
+                    }
                 }
-            }
-        } else {
-            // Model NOT downloaded
-            // If we have permission and are in RULES mode (default), we should load data!
-            if (_uiState.value.hasSmsPermission && _uiState.value.processingMode == "RULES") {
-                 Log.d(TAG, "Model not present, but in RULES mode. Starting Rule-based processing.")
-                 refreshSms(context)
+            } catch (e: Exception) {
+                Log.e(TAG, "Critical error in checkModelStatus", e)
+                // Emergency fallback
+                userPreferencesRepository.setAiEnabled(false)
+                _uiState.update { it.copy(processingMode = "RULES", error = "Critical system error. AI disabled.") }
             }
         }
     }
@@ -182,13 +218,8 @@ class HomeViewModel @Inject constructor(
              Log.e(TAG, "Failed to initialize AI for reprocessing")
         }
     }
-    
-    /**
-     * Refresh SMS - ensures AI is initialized first
-     */
-    /**
-     * Refresh SMS - respects processing mode
-     */
+
+    // ... refreshSms ...
     fun refreshSms(context: Context) {
         viewModelScope.launch {
             Log.d(TAG, "=== REFRESH STARTED === Mode=${_uiState.value.processingMode}")
@@ -200,10 +231,13 @@ class HomeViewModel @Inject constructor(
                     Log.d(TAG, "AI not ready, attempting to initialize...")
                     val initialized = localAIService.initialize(context)
                     if (!initialized) {
-                        Log.e(TAG, "Failed to initialize AI on refresh")
+                        val errorMsg = "Failed to initialize AI on refresh. Model might be corrupted."
+                        Log.e(TAG, errorMsg)
+                        debugLogRepository.appendLog("ERROR: $errorMsg")
                         _uiState.update { 
-                            it.copy(error = "Failed to initialize AI. Switch to RULES mode or checking download.")
+                            it.copy(error = errorMsg) 
                         }
+                        // Don't auto-disable - let user retry or fallback manually
                         return@launch
                     }
                     _uiState.update { it.copy(isModelDownloaded = true) }
@@ -221,7 +255,8 @@ class HomeViewModel @Inject constructor(
      * Internal function that processes SMS - handles both RULES and HYBRID modes
      */
     private suspend fun processSmsWithAI(contentResolver: ContentResolver) {
-        try {
+        withContext(Dispatchers.IO) {
+            try {
             _uiState.update { it.copy(isLoading = true, error = null, debugLog = "Starting processing in ${_uiState.value.processingMode} mode...") }
             
             val smsList = smsReader.readFinancialSms(contentResolver)
@@ -326,6 +361,7 @@ class HomeViewModel @Inject constructor(
                     error = "Failed to process SMS: ${e.message}"
                 ) 
             }
+        }
         }
     }
     
