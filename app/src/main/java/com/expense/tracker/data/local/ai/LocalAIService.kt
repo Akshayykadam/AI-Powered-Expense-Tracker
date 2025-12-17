@@ -109,7 +109,7 @@ class LocalAIService @Inject constructor() {
             // Configure LLM Inference options (minimal required settings)
             val options = LlmInferenceOptions.builder()
                 .setModelPath(modelPath!!)
-                .setMaxTokens(1024) // Increased for better reasoning
+                .setMaxTokens(128) // Optimizing for speed and memory - we only need short responses
                 .build()
             
             // Create LLM Inference instance

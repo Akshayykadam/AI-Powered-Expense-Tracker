@@ -23,6 +23,8 @@ import kotlinx.coroutines.launch
 import java.util.Calendar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
+import kotlinx.coroutines.delay
 import javax.inject.Inject
 
 private const val TAG = "HomeViewModel"
@@ -269,43 +271,52 @@ class HomeViewModel @Inject constructor(
             
             val isRulesMode = _uiState.value.processingMode == "RULES"
             
-            for (sms in smsList) {
-                // Pass strict flag based on mode
-                val parseResult = smsParser.parse(sms, useStrictRules = isRulesMode)
+            for ((index, sms) in smsList.withIndex()) {
+                // Yield to allow UI updates
+                yield()
                 
-                if (parseResult is ParseResult.Success) {
-                    if (isRulesMode) {
-                        // RULES MODE: Trust the strict parser
-                        validTransactions.add(parseResult)
-                        
-                        val logMsg = "✅ RULE MATCH: ${sms.body.take(20)}... Amt: ${parseResult.amount}"
-                        if (processedCount <= 10) { 
-                             _uiState.update { it.copy(debugLog = it.debugLog + "\n" + logMsg) }
-                        }
-                        processedCount++
-                        
-                    } else {
-                        // HYBRID MODE: Feed to AI
+                // Add small delay every few items to prevent thermal throttling and UI stutter
+                if (index % 5 == 0) delay(10)
+
+                // STAGE 1: Try Strict Rules (Fast, No AI)
+                // If strict rules match, we trust it 100% and skip AI
+                val strictResult = smsParser.parse(sms, useStrictRules = true)
+                
+                if (strictResult is ParseResult.Success) {
+                    validTransactions.add(strictResult)
+                    
+                    val logMsg = "✅ RULE MATCH: ${sms.body.take(20)}... Amt: ${strictResult.amount}"
+                    if (processedCount <= 10) { 
+                         _uiState.update { it.copy(debugLog = it.debugLog + "\n" + logMsg) }
+                    }
+                    processedCount++
+                    continue // Skip to next, don't use AI
+                }
+
+                // STAGE 2: If Strict failed, and we are in HYBRID mode, try Loose Rules + AI
+                if (!isRulesMode) {
+                    val looseResult = smsParser.parse(sms, useStrictRules = false)
+                    
+                    if (looseResult is ParseResult.Success) {
+                        // Loose match - Verify with AI
                         val logMsg = "AI checking: ${sms.body.take(20)}..."
                         if (processedCount <= 10) {
                             _uiState.update { it.copy(debugLog = it.debugLog + "\n" + logMsg) }
                         }
-                        Log.d(TAG, "STAGE 2: $logMsg")
                         
                         val verification = localAIService.verifySmsIntent(sms.body)
                         processedCount++
                         
                         if (verification.isTransaction) {
-                            // ... (AI success logic)
                              val approveMsg = "✅ APPROVED (${verification.transactionType})\nRAW: ${verification.rawResponse}"
                              debugLogRepository.appendLog(approveMsg)
                              
                              val finalType = when (verification.transactionType) {
                                   "DEBIT" -> TransactionType.DEBIT
                                   "CREDIT" -> TransactionType.CREDIT
-                                  else -> parseResult.type
+                                  else -> looseResult.type
                              }
-                             val aiVerifiedResult = parseResult.copy(type = finalType)
+                             val aiVerifiedResult = looseResult.copy(type = finalType)
                              validTransactions.add(aiVerifiedResult)
                         } else {
                             rejectedCount++
@@ -314,9 +325,12 @@ class HomeViewModel @Inject constructor(
                                  debugLogRepository.appendLog(rejectMsg)
                             }
                         }
+                    } else if (looseResult is ParseResult.Failure) {
+                        parseFailedCount++
                     }
-                } else if (parseResult is ParseResult.Failure) {
-                    parseFailedCount++
+                } else {
+                     // Rules mode and strict failed - count as failure
+                     parseFailedCount++
                 }
             }
             

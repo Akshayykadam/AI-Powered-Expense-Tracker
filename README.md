@@ -19,9 +19,9 @@ A **intelligent, privacy-first** personal finance app for Android that automatic
 
 ## 🚀 Key Features
 
-### 🧠 Hybrid Intelligence
-*   **📏 Instant Rule-Based Mode**: Zero setup. Uses India-specific regex patterns to instantly track 99% of bank SMS with 100% accuracy.
-*   **🤖 Local AI Mode (Gemma 2B)**: An advanced, on-device LLM that "reads" complex or unstructured messages to understand context. (Experimental)
+### 🧠 Hybrid Intelligence (Optimized)
+*   **⚡ Strict Rules First**: The app primarily uses millisecond-fast regex rules to instantly categorize 90% of transactions without touching the AI.
+*   **🤖 Fallback AI (Gemma 2B)**: Only when a message is ambiguous does the On-Device LLM step in to "read" the context. This ensures **zero lag** and minimal battery usage.
 
 ### 📊 Premium Visualization
 *   **Interactive Charts**: Beautiful bar charts with weekly, monthly, and yearly breakdowns.
@@ -55,8 +55,8 @@ A **intelligent, privacy-first** personal finance app for Android that automatic
 *   **Local Database**: Room (SQLite)
 *   **On-Device AI**: 
     *   **Google AI Edge SDK** (MediaPipe GenAI)
-    *   **Model**: Gemma 2B (INT4 Quantized)
-
+    *   **Model**: Gemma 2B (INT4 Quantized) with reduced context window for efficiency.
+*   **Build**: ABI Splitting enabled for minimal APK size (~50% smaller).
 ---
 
 ## 📂 Project Structure
@@ -83,6 +83,7 @@ com.expense.tracker
     *   Android Device (Min SDK 26) with ~1GB free space for AI model.
 2.  **Clone**: `git clone https://github.com/your-username/ai-expense-tracker.git`
 3.  **Build**: Sync Gradle and run `assembleRelease`.
+    *   *Note*: The project uses **ABI Splitting**. Check `app/build/outputs/apk/release/` for the architecture-specific APK (e.g., `app-arm64-v8a-release.apk`) to get the smallest file size.
 4.  **Run**: Deploy to device. Grant SMS permissions to start tracking.
 
 ---
