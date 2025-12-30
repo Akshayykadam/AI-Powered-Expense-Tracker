@@ -10,7 +10,11 @@ data class InsightsUiState(
     val isLoading: Boolean = true,
     val selectedPeriod: Period = Period.WEEK,
     val categoryTotals: Map<Category, Double> = emptyMap(),
+    val merchantSpending: List<Pair<String, Double>> = emptyList(), // Top brands spent
+    val merchantIncome: List<Pair<String, Double>> = emptyList(),   // Top sources received
+    val paymentModeTotals: Map<String, Double> = emptyMap(),        // UPI, Card, etc.
     val totalSpending: Double = 0.0,
+    val totalIncome: Double = 0.0,
     val observation: String? = null,
     val comparison: String? = null,
     val suggestion: String? = null,

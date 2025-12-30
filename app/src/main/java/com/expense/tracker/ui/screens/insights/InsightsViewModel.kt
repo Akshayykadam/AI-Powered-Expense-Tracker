@@ -61,14 +61,62 @@ class InsightsViewModel @Inject constructor(
         viewModelScope.launch {
             val (startTime, endTime) = getPeriodRange(period)
             
-            repository.getCategoryTotals(startTime, endTime).collect { totals ->
-                val totalSpending = totals.values.sum()
+            repository.getTransactionsBetween(startTime, endTime).collect { transactions ->
+                // 1. Separate Debit & Credit
+                val debits = transactions.filter { it.isDebit }
+                val credits = transactions.filter { it.isCredit }
+                
+                // 2. Total Spending & Income
+                val totalSpending = debits.sumOf { it.amount }
+                val totalIncome = credits.sumOf { it.amount }
+                
+                // 3. Category Totals
+                val categoryTotals = debits.groupBy { it.category }
+                    .mapValues { entry -> entry.value.sumOf { it.amount } }
+                
+                // 4. Merchant Spending (Top 5)
+                val merchantSpending = debits
+                    .groupBy { txn -> 
+                        // Improved extraction: Use merchant if available, else derive from description/body
+                        val candidate = txn.merchant ?: extractMerchantName(txn.description ?: "", txn.fullBody ?: "")
+                        candidate
+                    }
+                    .mapValues { entry -> entry.value.sumOf { it.amount } }
+                    .toList()
+                    .sortedByDescending { it.second }
+                    .take(5)
+                
+                // 5. Income Sources (Top 5)
+                val merchantIncome = credits
+                    .groupBy { txn -> 
+                         txn.merchant ?: extractMerchantName(txn.description ?: "", txn.fullBody ?: "")
+                    }
+                    .mapValues { entry -> entry.value.sumOf { it.amount } }
+                    .toList()
+                    .sortedByDescending { it.second }
+                    .take(5)
+                    
+                // 6. Payment Mode Breakdown (Heuristic based)
+                val paymentModeTotals = debits.groupBy { txn ->
+                    val text = (txn.fullBody ?: txn.description ?: "").uppercase()
+                    when {
+                        text.contains("UPI") || text.contains("VPA") -> "UPI"
+                        text.contains("XY") || text.contains("ENDING") || text.contains("CARD") -> "Card" // "ending XX" usually means card
+                        text.contains("ATM") -> "Cash/ATM"
+                        text.contains("NETBANKING") || text.contains("NEFT") || text.contains("IMPS") -> "Bank Transfer"
+                        else -> "Other"
+                    }
+                }.mapValues { entry -> entry.value.sumOf { it.amount } }
                 
                 _uiState.update { current ->
                     current.copy(
                         isLoading = false,
-                        categoryTotals = totals,
-                        totalSpending = totalSpending
+                        categoryTotals = categoryTotals,
+                        totalSpending = totalSpending,
+                        totalIncome = totalIncome,
+                        merchantSpending = merchantSpending,
+                        merchantIncome = merchantIncome,
+                        paymentModeTotals = paymentModeTotals
                     )
                 }
             }
@@ -98,5 +146,16 @@ class InsightsViewModel @Inject constructor(
         }
         
         return calendar.timeInMillis to endCalendar.timeInMillis
+    }
+    
+    private fun extractMerchantName(description: String, fullBody: String): String {
+        // Simple heuristic to extract a clean name
+        val text = if (description.isNotBlank()) description else fullBody
+        
+        // Return first 20 chars capitalized if no specific logic matches
+        return text.take(20).trim()
+            .replace(Regex("""(?:UPI|VPA|Ref|No|Txn|Id|Date).*""", RegexOption.IGNORE_CASE), "")
+            .trim()
+            .ifBlank { "Unknown" }
     }
 }

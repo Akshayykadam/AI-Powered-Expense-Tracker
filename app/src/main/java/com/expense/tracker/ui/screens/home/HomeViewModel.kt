@@ -21,6 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import kotlinx.coroutines.delay
+import com.expense.tracker.data.local.ai.SmsMessageRequest
 import javax.inject.Inject
 
 private const val TAG = "HomeViewModel"
@@ -38,6 +39,8 @@ class HomeViewModel @Inject constructor(
     
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    
+    private var hasInitialAuditRun = false
     
     init {
         loadData()
@@ -126,8 +129,12 @@ class HomeViewModel @Inject constructor(
                 _uiState.update { it.copy(isModelDownloaded = isReady) } // Reuse flag for API Ready
 
                 if (isReady && _uiState.value.processingMode == "HYBRID" && _uiState.value.hasSmsPermission) {
-                     debugLogRepository.appendLog("Gemini AI Ready. Starting SMS processing...")
-                     refreshSms(context)
+                     // Only run automatically ONCE per session
+                     if (!hasInitialAuditRun) {
+                         debugLogRepository.appendLog("Gemini AI Ready. Starting initial SMS processing...")
+                         refreshSms(context)
+                         hasInitialAuditRun = true
+                     }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error in checkModelStatus", e)
@@ -186,10 +193,31 @@ class HomeViewModel @Inject constructor(
     private suspend fun processSmsWithAI(contentResolver: ContentResolver) {
         withContext(Dispatchers.IO) {
             try {
-            _uiState.update { it.copy(isLoading = true, error = null, debugLog = "Starting processing in ${_uiState.value.processingMode} mode...") }
+            _uiState.update { it.copy(
+                isLoading = true, 
+                error = null, 
+                processingProgress = 0f,
+                totalSmsToProcess = 0,
+                debugLog = "Starting processing in ${_uiState.value.processingMode} mode...",
+                
+                // Clear data visuals as requested
+                todayInflow = 0.0,
+                todayOutflow = 0.0,
+                netBalance = 0.0,
+                recentTransactions = emptyList(),
+                allTransactions = emptyList(),
+                totalTransactionCount = 0,
+                unclassifiedCount = 0
+            ) }
+            
+            // Clear DB data as per user request (Fresh Start)
+            repository.deleteAll()
+            Log.d(TAG, "Cleared all existing transaction data.")
             
             val smsList = smsReader.readFinancialSms(contentResolver)
             Log.d(TAG, "Read ${smsList.size} SMS messages")
+            
+            _uiState.update { it.copy(totalSmsToProcess = smsList.size) }
             
             val validTransactions = mutableListOf<ParseResult.Success>()
             var processedCount = 0
@@ -197,71 +225,84 @@ class HomeViewModel @Inject constructor(
             var parseFailedCount = 0
             
             val isRulesMode = _uiState.value.processingMode == "RULES"
+            val aiBatchPending = mutableListOf<SmsMessageRequest>()
+            val aiBatchSourceResults = mutableMapOf<String, ParseResult.Success>()
             
             for ((index, sms) in smsList.withIndex()) {
-                // Yield to allow UI updates
                 yield()
-                
-                // Add small delay every few items to prevent thermal throttling and UI stutter
                 if (index % 5 == 0) delay(10)
 
                 // STAGE 1: Try Strict Rules (Fast, No AI)
-                // If strict rules match, we trust it 100% and skip AI
                 val strictResult = smsParser.parse(sms, useStrictRules = true)
                 
                 if (strictResult is ParseResult.Success) {
                     validTransactions.add(strictResult)
-                    
-                    val logMsg = "✅ RULE MATCH: ${sms.body.take(20)}... Amt: ${strictResult.amount}"
-                    if (processedCount <= 10) { 
-                         _uiState.update { it.copy(debugLog = it.debugLog + "\n" + logMsg) }
-                    }
                     processedCount++
-                    continue // Skip to next, don't use AI
+                    continue
                 }
 
-                // STAGE 2: If Strict failed, and we are in HYBRID mode, try Loose Rules + AI
+                // STAGE 2: If Strict failed, and we are in HYBRID mode, collect for Batch AI
                 if (!isRulesMode) {
                     val looseResult = smsParser.parse(sms, useStrictRules = false)
-                    
                     if (looseResult is ParseResult.Success) {
-                        // Loose match - Verify with AI
-                        val logMsg = "AI checking: ${sms.body.take(20)}..."
-                        if (processedCount <= 10) {
-                            _uiState.update { it.copy(debugLog = it.debugLog + "\n" + logMsg) }
-                        }
-                        
-                        val verification = localAIService.verifySmsIntent(sms.body)
-                        processedCount++
-                        
-                        if (verification.isTransaction) {
-                             val approveMsg = "✅ APPROVED (${verification.transactionType})\nRAW: ${verification.rawResponse}"
-                             debugLogRepository.appendLog(approveMsg)
-                             
-                             val finalType = when (verification.transactionType) {
-                                  "DEBIT" -> TransactionType.DEBIT
-                                  "CREDIT" -> TransactionType.CREDIT
-                                  else -> looseResult.type
-                             }
-                             val aiVerifiedResult = looseResult.copy(type = finalType)
-                             validTransactions.add(aiVerifiedResult)
-                        } else {
-                            rejectedCount++
-                            val rejectMsg = "❌ REJECTED: ${verification.reason} (${sms.body.take(15)}..)\nRAW: ${verification.rawResponse}"
-                            if (rejectedCount <= 10) {
-                                 debugLogRepository.appendLog(rejectMsg)
-                            }
-                        }
-                    } else if (looseResult is ParseResult.Failure) {
+                        val smsId = "sms_${sms.date}_${sms.address.hashCode()}"
+                        aiBatchPending.add(SmsMessageRequest(smsId, sms.body))
+                        aiBatchSourceResults[smsId] = looseResult
+                    } else {
                         parseFailedCount++
                     }
                 } else {
-                     // Rules mode and strict failed - count as failure
-                     parseFailedCount++
+                    parseFailedCount++
+                }
+                
+                // Update progress for rules stage
+                if (index > 0 && index % 10 == 0) {
+                    val progress = index.toFloat() / smsList.size.toFloat() * 0.3f // First 30% is rules
+                    _uiState.update { it.copy(processingProgress = progress) }
+                }
+            }
+
+            // STAGE 3: Process AI Batch in chunks of 10
+            if (aiBatchPending.isNotEmpty()) {
+                _uiState.update { it.copy(debugLog = it.debugLog + "\nSending ${aiBatchPending.size} messages to AI in batches...") }
+                
+                aiBatchPending.chunked(10).forEach { chunk ->
+                    val results = localAIService.processSmsBatch(chunk)
+                    results.forEach { verification ->
+                        val sourceResult = aiBatchSourceResults[verification.id]
+                        if (verification.isTransaction && sourceResult != null) {
+                            val finalType = when (verification.transactionType) {
+                                "DEBIT" -> TransactionType.DEBIT
+                                "CREDIT" -> TransactionType.CREDIT
+                                else -> sourceResult.type
+                            }
+                            
+                            // Use AI-suggested category if available
+                            val aiCategory = verification.category?.let { 
+                                com.expense.tracker.domain.model.Category.fromString(it) 
+                            }
+                            
+                            val aiVerifiedResult = sourceResult.copy(
+                                type = finalType,
+                                merchant = verification.merchant ?: sourceResult.merchant,
+                                description = verification.merchant ?: sourceResult.description
+                            )
+                            validTransactions.add(aiVerifiedResult)
+                        } else if (!verification.isTransaction) {
+                            rejectedCount++
+                        }
+                    }
+                    processedCount += chunk.size
+                    val progress = 0.3f + (processedCount.toFloat() / smsList.size.toFloat() * 0.7f) // Remaining 70% is AI
+                    _uiState.update { it.copy(
+                        processingProgress = progress,
+                        debugLog = it.debugLog + "\nProcessed ${processedCount}/${smsList.size}..."
+                    ) }
                 }
             }
             
-            var newCount = 0
+            // STAGE 4: Bulk insert new transactions
+            val newTransactions = mutableListOf<Transaction>()
             for (parsed in validTransactions) {
                 if (!repository.existsByHash(parsed.rawSmsHash)) {
                     val categorizationResult = merchantCategorizer.categorize(
@@ -269,7 +310,7 @@ class HomeViewModel @Inject constructor(
                         parsed.description
                     )
                     
-                    val transaction = Transaction(
+                    newTransactions.add(Transaction(
                         timestamp = parsed.timestamp,
                         amount = parsed.amount,
                         type = parsed.type, 
@@ -278,18 +319,21 @@ class HomeViewModel @Inject constructor(
                         category = categorizationResult.category,
                         rawSmsHash = parsed.rawSmsHash,
                         fullBody = parsed.fullBody
-                    )
-                    repository.insertTransaction(transaction)
-                    newCount++
+                    ))
                 }
             }
             
-            val summary = "DONE. SMS=${smsList.size}, Valid=${validTransactions.size}, New=$newCount. (Rules Mode: $isRulesMode)"
+            if (newTransactions.isNotEmpty()) {
+                repository.insertTransactions(newTransactions)
+            }
+            
+            val summary = "DONE. SMS=${smsList.size}, Valid=${validTransactions.size}, New=${newTransactions.size}. (Rules Mode: $isRulesMode)"
             Log.d(TAG, summary)
             _uiState.update { 
                 it.copy(
                     debugLog = it.debugLog + "\n\n" + summary,
                     isLoading = false,
+                    processingProgress = 1f,
                     error = null
                 )
             }

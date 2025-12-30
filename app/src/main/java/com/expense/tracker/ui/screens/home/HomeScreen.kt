@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -45,7 +46,8 @@ enum class TimePeriod(val label: String) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    viewModel: HomeViewModel = hiltViewModel()
+    viewModel: HomeViewModel = hiltViewModel(),
+    onSettingsClick: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -127,12 +129,8 @@ fun HomeScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.End
                     ) {
-                        // AI Status Badge
-                        AIStatusBadge(isReady = uiState.isModelDownloaded)
-                        
                         // Refresh
                         if (uiState.hasSmsPermission) {
-                            Spacer(modifier = Modifier.width(10.dp))
                             IconButton(
                                 onClick = { viewModel.refreshSms(context) },
                                 modifier = Modifier.size(36.dp)
@@ -144,6 +142,21 @@ fun HomeScreen(
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
+                        }
+                        
+                        Spacer(modifier = Modifier.width(8.dp))
+                        
+                        // Settings
+                        IconButton(
+                            onClick = onSettingsClick,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Settings,
+                                contentDescription = "Settings",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                     }
                 }
@@ -160,9 +173,19 @@ fun HomeScreen(
             // Extra spacing below header
             item { Spacer(modifier = Modifier.height(8.dp)) }
             
+            // Enhanced Loading Indicator (Moved to Top)
+            if (uiState.isLoading) {
+                item(key = "progress_card") {
+                    ProcessingProgressCard(
+                        progress = uiState.processingProgress,
+                        isAiMode = uiState.processingMode == "HYBRID"
+                    )
+                }
+            }
+            
             // SMS Permission Banner (if needed)
             if (!uiState.hasSmsPermission) {
-                item {
+                item(key = "permission_banner") {
                     SmsPermissionBanner(
                         onRequestPermission = {
                             permissionLauncher.launch(Manifest.permission.READ_SMS)
@@ -171,17 +194,9 @@ fun HomeScreen(
                 }
             }
             
-            // AI Insight Widget 🔥
-            item {
-                AIInsightWidget(
-                    insight = uiState.aiInsight,
-                    isLoading = uiState.isLoadingInsight,
-                    onRefresh = { viewModel.fetchAIInsight() }
-                )
-            }
+            // AI Insight Removed as per request
             
-            // Time Period Selector
-            item {
+            item(key = "period_selector") {
                 ModernTimePeriodSelector(
                     selectedPeriod = selectedPeriod,
                     onPeriodSelected = { selectedPeriod = it }
@@ -189,7 +204,7 @@ fun HomeScreen(
             }
             
             // Summary Cards - Inflow and Outflow
-            item {
+            item(key = "summary_cards") {
                 AnimatedContent(
                     targetState = selectedPeriod,
                     transitionSpec = { fadeIn() togetherWith fadeOut() },
@@ -217,7 +232,7 @@ fun HomeScreen(
             
             // Chart (for non-today periods)
             if (selectedPeriod != TimePeriod.TODAY) {
-                item {
+                item(key = "chart_card") {
                     ChartCard(
                         selectedPeriod = selectedPeriod,
                         allTransactions = uiState.allTransactions
@@ -226,7 +241,7 @@ fun HomeScreen(
             }
             
             // Stats Row
-            item {
+            item(key = "stats_row") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -275,19 +290,7 @@ fun HomeScreen(
                 }
             }
             
-            // Loading indicator
-            if (uiState.isLoading) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = PurplePrimary)
-                    }
-                }
-            }
+
             
             // Empty state
             if (!uiState.isLoading && uiState.recentTransactions.isEmpty() && uiState.hasSmsPermission) {
@@ -566,6 +569,83 @@ private fun SmsPermissionBanner(
             ) {
                 Text("Grant Permission")
             }
+        }
+    }
+}
+
+@Composable
+private fun ProcessingProgressCard(
+    progress: Float,
+    isAiMode: Boolean
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "pulsing")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.5f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "alpha"
+    )
+
+    GradientGlassCard(
+        gradientColors = listOf(
+            PurplePrimary.copy(alpha = 0.15f),
+            AccentPink.copy(alpha = 0.05f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = if (isAiMode) Icons.Default.AutoAwesome else Icons.Default.Search,
+                    contentDescription = null,
+                    tint = PurplePrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (isAiMode) "AI SMS Auditor in Progress..." else "Analyzing SMS Records...",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha)
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            val animatedProgress by animateFloatAsState(
+                targetValue = progress,
+                animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing),
+                label = "progress"
+            )
+            
+            // Linear progress with rounded corners
+            LinearProgressIndicator(
+                progress = { animatedProgress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                color = PurplePrimary,
+                trackColor = PurplePrimary.copy(alpha = 0.1f),
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Text(
+                text = "${(progress * 100).toInt()}% Verified",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

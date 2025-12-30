@@ -2,6 +2,8 @@ package com.expense.tracker.ui.navigation
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
+import androidx.compose.ui.graphics.Color
+import com.expense.tracker.ui.theme.PurplePrimary
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -31,7 +33,10 @@ fun AppNavigation(
     
     Scaffold(
         bottomBar = {
-            NavigationBar {
+            NavigationBar(
+                containerColor = Color.Transparent,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            ) {
                 Screen.bottomNavItems.forEach { screen ->
                     val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
                     
@@ -52,7 +57,14 @@ fun AppNavigation(
                                 launchSingleTop = true
                                 restoreState = true
                             }
-                        }
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = PurplePrimary,
+                            selectedTextColor = PurplePrimary,
+                            indicatorColor = PurplePrimary.copy(alpha = 0.2f),
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     )
                 }
             }
@@ -64,7 +76,11 @@ fun AppNavigation(
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Home.route) {
-                HomeScreen()
+                HomeScreen(
+                    onSettingsClick = {
+                        navController.navigate(Screen.Settings.route)
+                    }
+                )
             }
             composable(Screen.Timeline.route) {
                 TimelineScreen()

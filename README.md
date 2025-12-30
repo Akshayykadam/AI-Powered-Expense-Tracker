@@ -13,15 +13,15 @@ A **smart, visually stunning** personal finance app for Android that automatical
 ## 🚀 Key Features
 
 ### 🧠 Gemini-Powered Intelligence
-*   **🤖 AI SMS Auditor**: Uses **Gemini (gemma-3-27b-it)** to "read" and verify transaction intent. It automatically filters out junk, OTPs, and even tricky EMI reminders and due-alerts.
-*   **💡 Spending Insights**: Get friendly, AI-generated tips and insights based on your recent spending habits directly on the home screen.
+*   **🤖 Smart SMS Auditor**: Uses **Gemini (gemma-3-27b-it)** to "read" verification intent. It now intelligently **ignores EMI reminders**, "Maintain Balance" alerts, and generic due-date notifications to prevent false expenses.
 *   **📂 Auto-Categorization**: RAG (Retrieval-Augmented Generation) enhanced categorization that learns from your previous transaction history.
 
-### 🎨 Aesthetic UI
-*   **✨ Vibrant Theme**: A custom design system featuring deep purples, hot pink accents, and a sleek dark-mode-only interface.
-*   **📊 Premium Visualization**: 
+### 🎨 Aesthetic GenZ UI
+*   **✨ Glassymorphism**: A stunning new "Glassy" Donut Chart for insights, featuring translucent layers and soft gradients.
+*   **🟣 Payment Mode Focus**: Insights now strictly focus on **Payment Mode** breakdowns (UPI, Card, Cash) for clearer financial tracking.
+*   **🔄 True Refresh**: The refresh button now performs a **Fresh Start**, clearing old data and reprocessing your inbox to ensure zero stale entries.
+*   **📊 Vizualization**:
     *   **Heatmap Calendar**: Visualize your spending density using a custom purple-to-pink gradient.
-    *   **Interactive Charts**: Real-time spending breakdowns by category with smooth animations.
     *   **Timeline View**: A chronological history of all your transactions with high-contrast Material Icons.
 
 ### ⚙️ Transparent Control

@@ -35,20 +35,10 @@ fun GlassCard(
             .background(
                 brush = Brush.linearGradient(
                     colors = listOf(
-                        MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
-                        MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                        MaterialTheme.colorScheme.surface.copy(alpha = 0.15f),
+                        MaterialTheme.colorScheme.surface.copy(alpha = 0.05f)
                     )
                 )
-            )
-            .border(
-                width = 1.dp,
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        GlassBorder,
-                        GlassBorder.copy(alpha = 0.2f)
-                    )
-                ),
-                shape = shape
             )
             .then(
                 if (onClick != null) Modifier.clickable { onClick() }
@@ -83,16 +73,6 @@ fun GradientGlassCard(
             .clip(shape)
             .background(
                 brush = Brush.linearGradient(colors = gradientColors)
-            )
-            .border(
-                width = 1.dp,
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        PurplePrimary.copy(alpha = 0.3f),
-                        AccentPink.copy(alpha = 0.2f)
-                    )
-                ),
-                shape = shape
             )
             .then(
                 if (onClick != null) Modifier.clickable { onClick() }

@@ -1,23 +1,32 @@
 package com.expense.tracker.ui.screens.insights
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.expense.tracker.domain.model.Category
-import com.expense.tracker.ui.components.InsightCard
+import com.expense.tracker.ui.components.GlassCard
 import com.expense.tracker.ui.components.PeriodSwitcher
 import com.expense.tracker.ui.theme.*
 
@@ -27,17 +36,31 @@ fun InsightsScreen(
     viewModel: InsightsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var selectedTab by remember { mutableStateOf(0) } // 0 = Spending, 1 = Income
     
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = { 
+            Column {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp, bottom = 8.dp, start = 16.dp, end = 16.dp)
+                ) {
                     Text(
-                        text = "Insights",
-                        fontWeight = FontWeight.Bold
-                    ) 
+                        text = "Analytics & Insights",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
                 }
-            )
+                
+                PeriodSwitcher(
+                    selectedPeriod = uiState.selectedPeriod,
+                    onPeriodSelected = { viewModel.onPeriodSelected(it) }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
         }
     ) { padding ->
         LazyColumn(
@@ -45,264 +68,306 @@ fun InsightsScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Period Switcher
+            
+            // Hero Chart Section
             item {
-                Spacer(modifier = Modifier.height(8.dp))
-                PeriodSwitcher(
-                    selectedPeriod = uiState.selectedPeriod,
-                    onPeriodSelected = { viewModel.onPeriodSelected(it) }
-                )
+                InsightsHeroSection(uiState = uiState)
             }
-            
-            // Total Spending
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "Total Spending",
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "₹${String.format("%,.2f", uiState.totalSpending)}",
-                            style = MaterialTheme.typography.displaySmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-            
-            // Category Pie Chart
-            if (uiState.categoryTotals.isNotEmpty()) {
-                item {
-                    Text(
-                        text = "Spending by Category",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    SimplePieChart(
-                        data = uiState.categoryTotals,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp)
-                    )
-                }
-                
-                // Category breakdown list
-                item {
-                    CategoryBreakdown(
-                        categoryTotals = uiState.categoryTotals,
-                        total = uiState.totalSpending
-                    )
-                }
-            }
-            
-            // AI Insight Section
-            if (uiState.isAiConfigured) {
-                item {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    if (uiState.observation != null || uiState.isGeneratingInsight) {
-                        InsightCard(
-                            observation = uiState.observation,
-                            comparison = uiState.comparison,
-                            suggestion = uiState.suggestion,
-                            isLoading = uiState.isGeneratingInsight,
-                            onRegenerate = { viewModel.generateInsight() },
-                            onDismiss = { }
-                        )
-                    } else {
-                        Button(
-                            onClick = { viewModel.generateInsight() },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = null
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Generate AI Insight")
-                        }
-                    }
-                }
-            } else {
-                item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = "🤖",
-                                style = MaterialTheme.typography.displaySmall
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "AI Insights",
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            Text(
-                                text = "Download AI model from Home screen for smart insights",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
-            
-            // Loading
-            if (uiState.isLoading) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                }
-            }
-            
-            item { Spacer(modifier = Modifier.height(16.dp)) }
         }
     }
 }
 
 @Composable
-private fun SimplePieChart(
-    data: Map<Category, Double>,
-    modifier: Modifier = Modifier
-) {
-    val total = data.values.sum()
-    if (total == 0.0) return
+fun InsightsHeroSection(uiState: InsightsUiState) {
+    // Mode is always Payment Mode now as per user request
     
-    val sortedData = data.entries
-        .filter { it.value > 0 }
-        .sortedByDescending { it.value }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 80.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        // Data for Payment Mode
+        val dataMap = uiState.paymentModeTotals
+        val total = dataMap.values.sum()
+        val sortedData = dataMap.toList().sortedByDescending { it.second }
+        
+        // Glassy Colors (Payment Mode) - Vibrant but with transparency for glass effect
+        val colors = listOf(
+            PurplePrimary.copy(alpha = 0.8f), 
+            AccentPink.copy(alpha = 0.8f), 
+            AccentCyan.copy(alpha = 0.8f), 
+            AccentGold.copy(alpha = 0.8f),
+            Color(0xFF9C27B0).copy(alpha = 0.8f)
+        )
+
+        // HERO CHART (Bigger & Glassy)
+        Box(
+            modifier = Modifier.size(280.dp), // Slightly larger
+            contentAlignment = Alignment.Center
+        ) {
+            // Background glow for glass effect
+            Box(
+                modifier = Modifier
+                    .size(200.dp)
+                    .clip(CircleShape)
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                PurplePrimary.copy(alpha = 0.15f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
+
+            if (sortedData.isNotEmpty()) {
+                DonutChart(
+                    data = sortedData,
+                    total = total,
+                    colors = colors,
+                    modifier = Modifier.size(280.dp),
+                    thickness = 45.dp // Slightly thicker
+                )
+            }
+            
+            // Center Text
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "Total Spent",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "₹${String.format("%,.0f", total)}", // Full amount
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+        
+        // Detailed Legend List
+        GlassCard(modifier = Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(
+                    text = "Payment Breakdown",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                if (sortedData.isEmpty()) {
+                    Text(
+                         text = "No data for this period",
+                         modifier = Modifier.align(Alignment.CenterHorizontally),
+                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    sortedData.forEachIndexed { index, (name, amount) ->
+                        val color = colors.getOrElse(index) { Color.Gray }
+                        val percentage = if (total > 0) (amount / total * 100) else 0.0
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .clip(CircleShape)
+                                        .background(color)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = name,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "(${String.format("%.1f", percentage)}%)",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            
+                            Text(
+                                text = "₹${String.format("%,.0f", amount)}",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        
+                        // Mini progress bar below each item
+                        LinearProgressIndicator(
+                            progress = { percentage.toFloat() / 100f },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(6.dp) // Slightly thicker for emphasis
+                                .clip(RoundedCornerShape(3.dp)),
+                            color = color,
+                            trackColor = color.copy(alpha = 0.15f)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DonutChart(
+    data: List<Pair<String, Double>>,
+    total: Double,
+    colors: List<Color>,
+    modifier: Modifier = Modifier,
+    thickness: Dp = 20.dp
+) {
+    var startAngle = -90f
+    
+    // Animation state
+    var animationPlayed by remember { mutableStateOf(false) }
+    val progress by animateFloatAsState(
+        targetValue = if (animationPlayed) 1f else 0f,
+        animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
+        label = "chartAnimation"
+    )
+    
+    LaunchedEffect(Unit) {
+        animationPlayed = true
+    }
     
     Canvas(modifier = modifier) {
-        val canvasSize = minOf(size.width, size.height)
-        val radius = canvasSize / 2.5f
-        val center = Offset(size.width / 2, size.height / 2)
+        val totalSweep = 360f * progress
         
-        var startAngle = -90f
-        
-        sortedData.forEach { (category, value) ->
-            val sweepAngle = (value / total * 360).toFloat()
-            val color = getCategoryChartColor(category)
+        data.forEachIndexed { index, (_, amount) ->
+            val sweepAngle = ((amount / total) * 360f).toFloat() * progress
+            val color = colors.getOrElse(index) { Color.Gray }
             
             drawArc(
                 color = color,
                 startAngle = startAngle,
                 sweepAngle = sweepAngle,
-                useCenter = true,
-                topLeft = Offset(center.x - radius, center.y - radius),
-                size = Size(radius * 2, radius * 2)
+                useCenter = false,
+                style = Stroke(width = thickness.toPx(), cap = StrokeCap.Butt),
+                size = Size(size.width, size.height),
+                topLeft = Offset(0f, 0f)
             )
             
             startAngle += sweepAngle
         }
-        
-        // Inner circle for donut effect
-        drawCircle(
-            color = Color.White,
-            radius = radius * 0.5f,
-            center = center
-        )
     }
 }
 
+
 @Composable
-private fun CategoryBreakdown(
-    categoryTotals: Map<Category, Double>,
-    total: Double
-) {
-    val sortedTotals = categoryTotals.entries
-        .filter { it.value > 0 }
-        .sortedByDescending { it.value }
+fun MerchantRow(name: String, amount: Double, total: Double, color: Color) {
+    val percentage = if (total > 0) (amount / total) else 0.0
     
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        sortedTotals.forEach { (category, amount) ->
-            val percentage = if (total > 0) (amount / total * 100) else 0.0
-            
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+    GlassCard {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Icon Placeholder
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
             ) {
+                Text(
+                    text = name.take(1).uppercase(),
+                    fontWeight = FontWeight.Bold,
+                    color = color
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(12.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Surface(
-                        modifier = Modifier.size(12.dp),
-                        color = getCategoryChartColor(category),
-                        shape = MaterialTheme.shapes.extraSmall
-                    ) { }
-                    
                     Text(
-                        text = category.displayName,
-                        style = MaterialTheme.typography.bodyMedium
+                        text = name,
+                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1
+                    )
+                    Text(
+                        text = "₹${String.format("%,.0f", amount)}",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
                 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "₹${String.format("%,.0f", amount)}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        text = "${String.format("%.1f", percentage)}%",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                Spacer(modifier = Modifier.height(6.dp))
+                
+                LinearProgressIndicator(
+                    progress = { percentage.toFloat() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(2.dp)),
+                    color = color,
+                    trackColor = color.copy(alpha = 0.1f)
+                )
             }
         }
     }
 }
 
-private fun getCategoryChartColor(category: Category): Color {
-    return when (category) {
-        Category.FOOD_DINING -> CategoryFood
-        Category.GROCERY -> Color(0xFF66BB6A)
-        Category.FUEL, Category.TRAVEL -> CategoryTravel
-        Category.FASHION -> CategoryShopping
-        Category.UTILITIES -> CategoryUtilities
-        Category.RENT -> CategoryRent
-        Category.SUBSCRIPTIONS -> CategorySubscriptions
-        Category.ENTERTAINMENT -> CategoryEntertainment
-        Category.MEDICAL -> CategoryHealthcare
-        Category.UPI_TRANSFER, Category.BANK_TRANSFER -> CategoryTransfers
-        Category.INCOME, Category.INVESTMENTS -> CategoryIncome
-        Category.EMI_LOAN, Category.CREDIT_CARD -> Color(0xFFEF5350)
-        Category.INSURANCE -> Color(0xFF5C6BC0)
-        Category.EDUCATION -> Color(0xFF26A69A)
-        Category.OTHER -> CategoryOther
+@Composable
+fun SegmentedControl(
+    items: List<String>,
+    selectedIndex: Int,
+    onIndexChanged: (Int) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .padding(4.dp)
+    ) {
+        items.forEachIndexed { index, text ->
+            val isSelected = selectedIndex == index
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (isSelected) MaterialTheme.colorScheme.surface else Color.Transparent)
+                    .clickable { onIndexChanged(index) }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = text,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun EmptyState(text: String) {
+    Box(
+        modifier = Modifier.fillMaxWidth().padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

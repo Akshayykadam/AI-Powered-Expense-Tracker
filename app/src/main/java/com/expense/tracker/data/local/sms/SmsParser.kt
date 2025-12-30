@@ -96,8 +96,10 @@ class SmsParser @Inject constructor() {
             Regex("""reference\s+(?:no|number|id)\s*:""", RegexOption.IGNORE_CASE),
             
             // Loan and EMI reminders (not the actual debit)
-            Regex("""EMI\s+(?:due|reminder|of\s+Rs).*(?:due\s+on|pay\s+by)""", RegexOption.IGNORE_CASE),
+            Regex("""EMI\s+(?:due|reminder|of\s+Rs|Rs\.?|INR|₹).*due\s+on""", RegexOption.IGNORE_CASE),
             Regex("""loan\s+(?:application|approved|disbursed)""", RegexOption.IGNORE_CASE),
+            Regex("""maintain\s+(?:sufficient\s+)?balance""", RegexOption.IGNORE_CASE),
+            Regex("""upcoming\s+(?:EMI|payment)""", RegexOption.IGNORE_CASE),
             
             // Card/Account services
             Regex("""card\s+(?:blocked|unblocked|dispatched|activated)""", RegexOption.IGNORE_CASE),
@@ -109,6 +111,19 @@ class SmsParser @Inject constructor() {
             Regex("""(?i)requested\s+money"""),
             Regex("""(?i)on\s+approving"""),
             Regex("""(?i)request\s+-\s+https"""),
+            Regex("""(?i)is\s+due\s+on"""),
+            
+            // Declined/Failed Transactions
+            Regex("""(?i)declined"""),
+            Regex("""(?i)failed"""),
+            Regex("""(?i)exceeds\s+the\s+.*limit"""),
+            Regex("""(?i)not\s+processed"""),
+            Regex("""(?i)could\s+not\s+be\s+processed"""),
+            
+            // Credit Card Bill Payments (Often appear as "Payment received on your Credit Card")
+            // Use strict regex to avoid blocking transfers TO the user
+            Regex("""payment.*received\s+on.*(?:credit\s+card|card\s+account)""", RegexOption.IGNORE_CASE),
+            Regex("""amt.*received\s+on.*(?:credit\s+card|card\s+account)""", RegexOption.IGNORE_CASE),
         )
         
         // ==================== VALID TRANSACTION PATTERNS (India-specific) ====================

@@ -12,6 +12,7 @@ ksp = "2.0.0-1.0.24"
 navigationCompose = "2.8.2"
 datastore = "1.1.1"
 generativeAi = "0.9.0"
+kotlinx-serialization = "1.6.3"
 coroutines = "1.8.1"
 junit = "4.13.2"
 junitExt = "1.2.1"
@@ -50,8 +51,9 @@ room-compiler = { group = "androidx.room", name = "room-compiler", version.ref =
 # DataStore
 datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 
-# Gemini AI
+# AI
 generative-ai = { group = "com.google.ai.client.generativeai", name = "generativeai", version.ref = "generativeAi" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 
 # Coroutines
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
@@ -72,3 +74,4 @@ kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

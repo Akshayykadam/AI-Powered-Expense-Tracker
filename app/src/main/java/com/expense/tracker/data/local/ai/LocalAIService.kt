@@ -10,6 +10,9 @@ import com.google.ai.client.generativeai.type.generationConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -44,13 +47,34 @@ enum class SmsIntent {
 }
 
 data class SmsVerificationResult(
-    val intent: SmsIntent,
+    val id: String,
     val isTransaction: Boolean,
-    val transactionType: String?,
     val amount: Double?,
+    val merchant: String?,
+    val category: String?,
     val confidence: Float,
-    val reason: String,
-    val rawResponse: String? = null
+    val transactionType: String? = null
+)
+
+@Serializable
+data class SmsBatchRequest(
+    val messages: List<SmsMessageRequest>
+)
+
+@Serializable
+data class SmsMessageRequest(
+    val id: String,
+    val text: String
+)
+
+@Serializable
+data class SmsMessageResponse(
+    val id: String,
+    val isExpense: Boolean,
+    val amount: Double?,
+    val merchant: String?,
+    val category: String?,
+    val confidence: Float
 )
 
 /**
@@ -82,10 +106,10 @@ class LocalAIService @Inject constructor(
                 modelName = modelName,
                 apiKey = apiKey,
                 generationConfig = generationConfig {
-                    temperature = 0.4f
+                    temperature = 0.1f // Minimal creativity for deterministic JSON
                     topK = 32
                     topP = 1f
-                    maxOutputTokens = 1024
+                    maxOutputTokens = 2048 // Increased for batch processing
                 }
             )
             isInitialized = true
@@ -168,78 +192,88 @@ class LocalAIService @Inject constructor(
         }
     }
     
-    suspend fun verifySmsIntent(smsBody: String): SmsVerificationResult = withContext(Dispatchers.IO) {
-        if (!isReady()) {
-            return@withContext SmsVerificationResult(
-                intent = SmsIntent.UNKNOWN,
-                isTransaction = false,
-                transactionType = null,
-                amount = null,
-                confidence = 0f,
-                reason = "AI not initialized"
-            )
-        }
+    private val jsonHelper = Json { 
+        ignoreUnknownKeys = true 
+        coerceInputValues = true
+        encodeDefaults = true
+    }
+
+    suspend fun processSmsBatch(messages: List<SmsMessageRequest>): List<SmsVerificationResult> = withContext(Dispatchers.IO) {
+        if (!isReady() || messages.isEmpty()) return@withContext emptyList()
         
         try {
+            val inputJson = jsonHelper.encodeToString(messages)
+            
             val prompt = """
-                You are a financial SMS auditor. Determine if the following SMS describes a COMPLETED money transaction (Debit or Credit).
+                You are a deterministic financial data processor. 
+                Convert the following SMS messages into a machine-readable JSON array of transaction details.
                 
-                CRITICAL RULES:
-                1. REJECT (NO) reminders, due date alerts, EMI notices, or upcoming bills.
-                2. REJECT (NO) "Recharge Successful", "Payment Successful", or "Transaction Successful" notifications from service providers (Jio, Airtel, etc.) if they aren't from a Bank.
-                3. REJECT (NO) account balance inquiries, OTPs, or plan validity updates.
-                4. ONLY ACCEPT (YES) if money HAS BEEN debited from or credited to a specific Bank Account or Wallet.
-                5. Look for keywords like: 'debited', 'spent', 'paid', 'credited', 'received'.
+                INPUT FORMAT (JSON Array):
+                [{"id": "...", "text": "..."}]
                 
-                SMS: "$smsBody"
+                RULES:
+                1. Return VALID JSON ONLY. No explanation, no markdown, no comments.
+                2. Set isExpense=true ONLY for completed debits, payments, or spends.
+                3. Set isExpense=false for reminders, OTPs, balance inquiries, credit card due alerts, or service status (e.g. "Recharge Successful").
+                4. EXTRACT 'amount' CAREFULLY: Remove currency symbols (Rs, INR, ₹) and commas. Example: "Rs. 1,200.50" -> 1200.50.
+                5. EXTRACT 'merchant': For UPI/Bank transfers, look for the receiver name (e.g. "Paid to RAJESH"). If brand name exists (e.g. "Swiggy", "Uber"), use it.
+                6. Predict the 'category' from: FOOD_DINING, GROCERY, FUEL, MEDICAL, UTILITIES, RENT, FASHION, ENTERTAINMENT, TRAVEL, SUBSCRIPTIONS, EMI_LOAN, CREDIT_CARD, INSURANCE, INVESTMENTS, UPI_TRANSFER, BANK_TRANSFER, INCOME, EDUCATION, OTHER.
+                7. Input array length MUST match output array length perfectly. IDs must match.
+
+                EXAMPLES:
+                Input: {"id":"1", "text":"Rs. 5,000 debited for Rent to LANDLORD via UPI"}
+                Output: {"id":"1", "isExpense":true, "amount":5000.0, "merchant":"LANDLORD", "category":"RENT", "confidence":0.9}
+
+                Input: {"id":"2", "text":"Your bill of Rs 499 is due on 15th"}
+                Output: {"id":"2", "isExpense":false, "amount":null, "merchant":null, "category":null, "confidence":1.0}
+
+                Input: {"id":"3", "text":"Paid INR 120.00 at STARBUCKS"}
+                Output: {"id":"3", "isExpense":true, "amount":120.0, "merchant":"STARBUCKS", "category":"FOOD_DINING", "confidence":0.95}
                 
-                Respond ONLY with:
-                YES|DEBIT|AMOUNT (if money was spent)
-                YES|CREDIT|AMOUNT (if money was received)
-                NO|REASON (if it's a reminder, provider success notice, OTP, or junk)
+                INPUT DATA:
+                $inputJson
                 
-                Examples:
-                - "Recharge Successful ! Plan Name : 239.00" -> NO|Service confirmation
-                - "EMI of 5000 is due" -> NO|EMI Reminder
-                - "Paid 500 for groceries at Swiggy" -> YES|DEBIT|500
-                - "Rs. 10000 credited to your A/c" -> YES|CREDIT|10000
+                OUTPUT FORMAT (JSON Array):
+                [{"id": "string", "isExpense": boolean, "amount": number|null, "merchant": "string|null", "category": "string|null", "confidence": float}]
             """.trimIndent()
             
-            val response = generativeModel?.generateContent(prompt)?.text?.trim() ?: "NO|Error"
+            val responseText = generativeModel?.generateContent(prompt)?.text?.trim() 
+                ?.replace("```json", "")?.replace("```", "") ?: "[]"
             
-            if (response.startsWith("YES")) {
-                val parts = response.split("|")
+            Log.d(TAG, "Batch Response: $responseText")
+            
+            val batchResponse = jsonHelper.decodeFromString<List<SmsMessageResponse>>(responseText)
+            
+            batchResponse.map { resp ->
                 SmsVerificationResult(
-                    intent = SmsIntent.FINANCIAL_TRANSACTION,
-                    isTransaction = true,
-                    transactionType = parts.getOrNull(1)?.trim(),
-                    amount = parts.getOrNull(2)?.trim()?.toDoubleOrNull(),
-                    confidence = 0.9f,
-                    reason = "AI detected transaction",
-                    rawResponse = response
-                )
-            } else {
-                SmsVerificationResult(
-                    intent = SmsIntent.INFORMATIONAL,
-                    isTransaction = false,
-                    transactionType = null,
-                    amount = null,
-                    confidence = 0.9f,
-                    reason = response.substringAfter("|").trim(),
-                    rawResponse = response
+                    id = resp.id,
+                    isTransaction = resp.isExpense,
+                    amount = resp.amount,
+                    merchant = resp.merchant,
+                    category = resp.category,
+                    confidence = resp.confidence,
+                    transactionType = if (resp.isExpense) "DEBIT" else null
                 )
             }
         } catch (e: Exception) {
-            Log.e(TAG, "SMS verification failed", e)
-            SmsVerificationResult(
-                intent = SmsIntent.UNKNOWN,
-                isTransaction = false,
-                transactionType = null,
-                amount = null,
-                confidence = 0f,
-                reason = "Error: ${e.message}"
-            )
+            Log.e(TAG, "Batch processing failed", e)
+            emptyList()
         }
+    }
+
+    // Deprecated in favor of processSmsBatch
+    suspend fun verifySmsIntent(smsBody: String): SmsVerificationResult = withContext(Dispatchers.IO) {
+        val dummyId = "single_verify"
+        val result = processSmsBatch(listOf(SmsMessageRequest(dummyId, smsBody))).firstOrNull()
+        
+        result ?: SmsVerificationResult(
+            id = dummyId,
+            isTransaction = false,
+            amount = null,
+            merchant = null,
+            category = null,
+            confidence = 0f
+        )
     }
     
     suspend fun generateInsight(): String? = withContext(Dispatchers.IO) {
@@ -258,14 +292,30 @@ class LocalAIService @Inject constructor(
                 .take(3)
                 .joinToString(", ") { "${it.key.displayName}: ₹${it.value.toInt()}" }
             
-            val prompt = """
-                Generate a ONE sentence friendly spending tip for this user.
+                val topMerchants = recentDebit.filter { !it.merchant.isNullOrBlank() }
+                    .groupBy { it.merchant!! }
+                    .mapValues { it.value.sumOf { t -> t.amount } }
+                    .toList().sortedByDescending { it.second }.take(3)
+                    .joinToString(", ") { "${it.first}: ₹${it.second.toInt()}" }
+
+                val paymentModes = recentDebit.groupBy { 
+                    val text = (it.fullBody ?: it.description ?: "").uppercase()
+                    if (text.contains("UPI") || text.contains("VPA")) "UPI" else "Card/Other"
+                }.mapValues { it.value.size }
                 
-                Recent spending: ₹${total.toInt()} across ${recentDebit.size} transactions
-                Top categories: $categoryBreakdown
-                
-                Keep it casual and helpful. Use emojis. Max 15 words.
-            """.trimIndent()
+                val prompt = """
+                    Generate a ONE sentence friendly, specific spending observation for this user.
+                    
+                    Recent spending: ₹${total.toInt()} across ${recentDebit.size} transactions
+                    Top Categories: $categoryBreakdown
+                    Top Merchants: $topMerchants
+                    Payment Mix: $paymentModes
+                    
+                    Rules:
+                    1. Mention a specific Merchant or Category if spending is high.
+                    2. Be witty, GenZ style (use slang like 'cooked', 'slayed', 'real ones').
+                    3. Use emojis. Max 15 words.
+                """.trimIndent()
             
             generativeModel?.generateContent(prompt)?.text?.trim()
         } catch (e: Exception) {

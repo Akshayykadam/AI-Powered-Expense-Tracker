@@ -24,5 +24,9 @@ data class HomeUiState(
     
     // Debugging
     val processingMode: String = "RULES",
-    val debugLog: String = ""
+    val debugLog: String = "",
+    
+    // Progress Tracking
+    val processingProgress: Float = 0f,
+    val totalSmsToProcess: Int = 0
 )
