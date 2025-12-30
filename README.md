@@ -1,93 +1,73 @@
-# 💰 AI-Powered Expense Tracker
+# 💰 AI-Powered Expense Tracker (GenZ Edition)
 
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF.svg?style=for-the-badge&logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-Material3-4285F4?style=for-the-badge&logo=android&logoColor=white)
-![Privacy](https://img.shields.io/badge/Privacy-100%25%20On--Device-success?style=for-the-badge&logo=google-safety&logoColor=white)
-![AI](https://img.shields.io/badge/AI-Gemma%202B-FF6F00?style=for-the-badge&logo=google-gemini&logoColor=white)
+![AI](https://img.shields.io/badge/AI-Gemini%20Cloud-FF6F00?style=for-the-badge&logo=google-gemini&logoColor=white)
+![Design](https://img.shields.io/badge/Design-GenZ%20Aesthetic-FF1493?style=for-the-badge&logo=visual-studio-code&logoColor=white)
 
-A **intelligent, privacy-first** personal finance app for Android that automatically tracks expenses from your SMS messages using **Local AI (Google Gemma 2B)** and **Smart Regex Rules**. 
+A **smart, visually stunning** personal finance app for Android that automatically tracks expenses from your SMS messages using **Google Gemini AI** and **Smart JSON Parsers**. Designed with a vibrant, modern aesthetic for the digital-native generation.
 
-> **🔒 Zero Data Leakage:** All processing happens 100% offline on your device. Your financial data never leaves your phone.
+> **🔒 Privacy First:** Your data is processed securely. The app uses AI to interpret complex spending patterns while keeping your financial history organized and accessible.
 
 ---
-## UI
-<img src="https://github.com/user-attachments/assets/57408ef5-dc9d-4863-81a1-ab8348baa784" width="160" />
-<img src="https://github.com/user-attachments/assets/5cbbe6d9-6b3e-4a82-8824-12b70696f011" width="160" />
-<img src="https://github.com/user-attachments/assets/7239a998-32dd-4cd1-8b35-270b948895eb" width="160" />
-<img src="https://github.com/user-attachments/assets/203bfdde-dcee-4d20-9155-c822b575769b" width="160" />
-<img src="https://github.com/user-attachments/assets/c0a01eae-a8f9-4377-b189-811f970bfa21" width="160" />
-
 ## 🚀 Key Features
 
-### 🧠 Hybrid Intelligence (Optimized)
-*   **⚡ Strict Rules First**: The app primarily uses millisecond-fast regex rules to instantly categorize 90% of transactions without touching the AI.
-*   **🤖 Fallback AI (Gemma 2B)**: Only when a message is ambiguous does the On-Device LLM step in to "read" the context. This ensures **zero lag** and minimal battery usage.
+### 🧠 Gemini-Powered Intelligence
+*   **🤖 AI SMS Auditor**: Uses **Gemini (gemma-3-27b-it)** to "read" and verify transaction intent. It automatically filters out junk, OTPs, and even tricky EMI reminders and due-alerts.
+*   **💡 Spending Insights**: Get friendly, AI-generated tips and insights based on your recent spending habits directly on the home screen.
+*   **📂 Auto-Categorization**: RAG (Retrieval-Augmented Generation) enhanced categorization that learns from your previous transaction history.
 
-### 📊 Premium Visualization
-*   **Interactive Charts**: Beautiful bar charts with weekly, monthly, and yearly breakdowns.
-*   **Trend Analysis**: Smooth cubic-bezier trend lines to visualize your spending trajectory over the year.
-*   **Calendar View**: Heat-map style calendar to visualize daily spending density.
+### 🎨 GenZ Aesthetic UI
+*   **✨ Vibrant Theme**: A custom "GenZ" design system featuring deep purples, hot pink accents, and a sleek dark-mode-only interface.
+*   **📊 Premium Visualization**: 
+    *   **Heatmap Calendar**: Visualize your spending density using a custom purple-to-pink gradient.
+    *   **Interactive Charts**: Real-time spending breakdowns by category with smooth animations.
+    *   **Timeline View**: A chronological history of all your transactions with high-contrast Material Icons.
 
-### ⚙️ Full Control
-*   **AI Model Center**: Centralized hub in Settings to manage the 550MB AI model download.
-*   **Dual Mode Toggle**: Switch between "Strict Rules" and "AI Hybrid" mode instantly.
-*   **Debug Console**: Transparently see how the app decides to ✅ Approve or ❌ Reject every single message.
+### ⚙️ Transparent Control
+*   **Debug Console**: Transparently see how the app ✅ Approves or ❌ Rejects every incoming message in real-time.
+*   **Optimized Performance**: ABI Splitting and resource shrinking ensure a tiny APK size (~3.1 MB) despite the heavy features.
 
 ---
 
 ## 📱 How It Works
 
-1.  **Auto-Scan**: On first launch, the app instantly scans your inbox using **Rule-Based Mode**.
-2.  **No Internet Needed**: Your data appears immediately. No sign-up, no servers.
-3.  **Optional AI Upgrade**: 
-    *   Go to **Settings > AI Model Center**.
-    *   Download the **Gemma 2B** model (~550MB) over Wi-Fi.
-    *   Enable **Hybrid Mode** for enhanced categorization power.
+1.  **Grant Permissions**: Simply grant SMS read access.
+2.  **Auto-Scan**: The app instantly finds financial transactions using a high-speed regex pre-processor.
+3.  **AI Verification**: Complex or ambiguous messages are verified by the **Gemini Cloud API** to ensure 100% accuracy.
+4.  **No Manual Entry**: Just spend, and let the app handle the tracking.
 
 ---
 
 ## 🛠️ Tech Stack
 
-*   **Language**: Kotlin
+*   **Language**: Kotlin 2.0
 *   **UI Framework**: Jetpack Compose (Material 3)
-*   **Architecture**: Clean Architecture + MVVM
-*   **Dependency Injection**: Hilt
-*   **Local Database**: Room (SQLite)
-*   **On-Device AI**: 
-    *   **Google AI Edge SDK** (MediaPipe GenAI)
-    *   **Model**: Gemma 2B (INT4 Quantized) with reduced context window for efficiency.
-*   **Build**: ABI Splitting enabled for minimal APK size (~50% smaller).
----
-
-## 📂 Project Structure
-
-```
-com.expense.tracker
-├── data/              # Repository impl, Room DB, Local AI Service
-│   ├── local/ai       # MediaPipe Integration & Model Management
-│   └── local/sms      # SMS Reader & Regex Parsers
-├── domain/            # Use Cases, Repository Interfaces, Models
-├── ui/                # Jetpack Compose Screens & ViewModels
-│   ├── components/    # Reusable UI (Charts, Cards, Dialogs)
-│   ├── screens/       # Home, Calendar, Timeline, Settings
-│   └── theme/         # Material 3 Theme & Typography
-└── di/                # Hilt Modules
-```
+*   **Architecture**: MVVM + Hilt (DI)
+*   **Database**: Room Persistence Library
+*   **Generative AI**: 
+    *   **Google AI Client SDK** (Gemini)
+    *   **Model**: gemma-3-27b-it
+*   **Networking**: Retrofit / OkHttp (for Gemini API)
 
 ---
 
 ## ⚡ Setup & Installation
 
-1.  **Prerequisites**: 
-    *   Android Studio Ladybug (or newer)
-    *   Android Device (Min SDK 26) with ~1GB free space for AI model.
-2.  **Clone**: `git clone https://github.com/your-username/ai-expense-tracker.git`
-3.  **Build**: Sync Gradle and run `assembleRelease`.
-    *   *Note*: The project uses **ABI Splitting**. Check `app/build/outputs/apk/release/` for the architecture-specific APK (e.g., `app-arm64-v8a-release.apk`) to get the smallest file size.
-4.  **Run**: Deploy to device. Grant SMS permissions to start tracking.
+1.  **API Key**: Obtain a Gemini API Key from [Google AI Studio](https://aistudio.google.com/).
+2.  **Configuration**: Add your key to `local.properties`:
+    ```properties
+    GEMINI_API_KEY=your_api_key_here
+    ```
+3.  **Clone & Build**:
+    ```bash
+    git clone https://github.com/your-username/ai-expense-tracker.git
+    ./gradlew assembleRelease
+    ```
+4.  **APK**: ABI Splitting is enabled. Find the architecture-specific APK in `app/build/outputs/apk/release/` (e.g., `app-arm64-v8a-release.apk`).
 
 ---
 
 ## 📄 License
 
-This project is for educational purposes, demonstrating the power of **On-Device Generative AI** in Android applications.
+Developed as part of an MBA Final Year Project by **Namita Kadam**. Created for educational purposes to demonstrate modern Android development and AI integration.

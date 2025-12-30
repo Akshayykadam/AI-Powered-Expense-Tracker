@@ -182,12 +182,27 @@ class LocalAIService @Inject constructor(
         
         try {
             val prompt = """
-                Is this SMS a financial transaction?
+                You are a financial SMS auditor. Determine if the following SMS describes a COMPLETED money transaction (Debit or Credit).
+                
+                CRITICAL RULES:
+                1. REJECT (NO) reminders, due date alerts, EMI notices, or upcoming bills.
+                2. REJECT (NO) account balance inquiries or OTPs.
+                3. ONLY ACCEPT (YES) if money HAS BEEN debited from or credited to an account.
+                4. Look for keywords like: 'debited', 'spent', 'paid', 'credited', 'received', 'successful'.
+                5. Ignore keywords like: 'due', 'reminder', 'will be debited', 'is scheduled'.
                 
                 SMS: "$smsBody"
                 
-                Respond ONLY with: YES|DEBIT|AMOUNT or YES|CREDIT|AMOUNT or NO|REASON
-                Example: YES|DEBIT|500 or NO|OTP message
+                Respond ONLY with:
+                YES|DEBIT|AMOUNT (if money was spent)
+                YES|CREDIT|AMOUNT (if money was received)
+                NO|REASON (if it's a reminder, OTP, or junk)
+                
+                Examples:
+                - "EMI of 5000 is due on 05-Jan" -> NO|EMI Reminder
+                - "Paid 500 for groceries at Swiggy" -> YES|DEBIT|500
+                - "Rs. 10000 credited to your A/c" -> YES|CREDIT|10000
+                - "OTP is 123456" -> NO|OTP message
             """.trimIndent()
             
             val response = generativeModel?.generateContent(prompt)?.text?.trim() ?: "NO|Error"

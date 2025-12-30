@@ -271,8 +271,8 @@ class SmsParser @Inject constructor() {
         val body = sms.body
         
         // STEP 1: Filter out informational/non-transactional messages
-        // In Strict Mode (Rule-Based), we aggressively filter out known non-transactions
-        if (useStrictRules && isInformationalMessage(body)) {
+        // We always filter out known non-transactions to avoid false positives
+        if (isInformationalMessage(body)) {
             return ParseResult.Failure("Informational message - no transaction")
         }
         
