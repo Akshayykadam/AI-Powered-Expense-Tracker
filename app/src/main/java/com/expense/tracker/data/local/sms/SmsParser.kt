@@ -59,6 +59,14 @@ class SmsParser @Inject constructor() {
             Regex("""due\s+date""", RegexOption.IGNORE_CASE),
             Regex("""bill\s+generated""", RegexOption.IGNORE_CASE),
             
+            // Payment/Recharge Status/Confirmation (Often duplicates or purely informational)
+            Regex("""recharge\s+successful""", RegexOption.IGNORE_CASE),
+            Regex("""payment\s+successful""", RegexOption.IGNORE_CASE),
+            Regex("""plan\s+name\s*:""", RegexOption.IGNORE_CASE),
+            Regex("""recharge\s+of\s+.*successful""", RegexOption.IGNORE_CASE),
+            Regex("""recharge\s+done""", RegexOption.IGNORE_CASE),
+            Regex("""transaction\s+successful""", RegexOption.IGNORE_CASE),
+            
             // Balance inquiry
             Regex("""(?:avl|available)\s+(?:bal|balance)\s*(?:is|:)""", RegexOption.IGNORE_CASE),
             Regex("""balance\s+(?:is|:)\s*(?:Rs|INR|₹)""", RegexOption.IGNORE_CASE),
@@ -135,9 +143,6 @@ class SmsParser @Inject constructor() {
             // Payments
             Regex("""payment\s+of\s+(?:Rs|INR|₹)""", RegexOption.IGNORE_CASE),
             Regex("""paid\s+(?:Rs|INR|₹)""", RegexOption.IGNORE_CASE),
-            
-            // Recharge (actual payment, not reminder)
-            Regex("""recharge(?:d)?\s+(?:of|for|with)\s+(?:Rs|INR|₹).*(?:successful|done)""", RegexOption.IGNORE_CASE),
             
             // Refunds
             Regex("""refund\s+of\s+(?:Rs|INR|₹)""", RegexOption.IGNORE_CASE),

@@ -186,23 +186,23 @@ class LocalAIService @Inject constructor(
                 
                 CRITICAL RULES:
                 1. REJECT (NO) reminders, due date alerts, EMI notices, or upcoming bills.
-                2. REJECT (NO) account balance inquiries or OTPs.
-                3. ONLY ACCEPT (YES) if money HAS BEEN debited from or credited to an account.
-                4. Look for keywords like: 'debited', 'spent', 'paid', 'credited', 'received', 'successful'.
-                5. Ignore keywords like: 'due', 'reminder', 'will be debited', 'is scheduled'.
+                2. REJECT (NO) "Recharge Successful", "Payment Successful", or "Transaction Successful" notifications from service providers (Jio, Airtel, etc.) if they aren't from a Bank.
+                3. REJECT (NO) account balance inquiries, OTPs, or plan validity updates.
+                4. ONLY ACCEPT (YES) if money HAS BEEN debited from or credited to a specific Bank Account or Wallet.
+                5. Look for keywords like: 'debited', 'spent', 'paid', 'credited', 'received'.
                 
                 SMS: "$smsBody"
                 
                 Respond ONLY with:
                 YES|DEBIT|AMOUNT (if money was spent)
                 YES|CREDIT|AMOUNT (if money was received)
-                NO|REASON (if it's a reminder, OTP, or junk)
+                NO|REASON (if it's a reminder, provider success notice, OTP, or junk)
                 
                 Examples:
-                - "EMI of 5000 is due on 05-Jan" -> NO|EMI Reminder
+                - "Recharge Successful ! Plan Name : 239.00" -> NO|Service confirmation
+                - "EMI of 5000 is due" -> NO|EMI Reminder
                 - "Paid 500 for groceries at Swiggy" -> YES|DEBIT|500
                 - "Rs. 10000 credited to your A/c" -> YES|CREDIT|10000
-                - "OTP is 123456" -> NO|OTP message
             """.trimIndent()
             
             val response = generativeModel?.generateContent(prompt)?.text?.trim() ?: "NO|Error"
