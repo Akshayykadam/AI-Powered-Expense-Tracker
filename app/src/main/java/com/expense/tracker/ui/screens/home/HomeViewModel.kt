@@ -71,6 +71,10 @@ class HomeViewModel @Inject constructor(
         }
     }
     
+    // Flag to prevent loadData from hiding the spinner during a refresh operation
+    @Volatile
+    private var isRefreshing = false
+
     private fun loadData() {
         viewModelScope.launch {
             val (startOfDay, endOfDay) = getTodayRange()
@@ -90,7 +94,8 @@ class HomeViewModel @Inject constructor(
             ) { data, counts ->
                 _uiState.update { current ->
                     current.copy(
-                        isLoading = false,
+                        // Only hide loading if we are NOT currently refreshing
+                        isLoading = if (isRefreshing) true else false,
                         todayInflow = data.inflow,
                         todayOutflow = data.outflow,
                         netBalance = data.netBalance,
@@ -193,6 +198,8 @@ class HomeViewModel @Inject constructor(
     private suspend fun processSmsWithAI(contentResolver: ContentResolver) {
         withContext(Dispatchers.IO) {
             try {
+            isRefreshing = true // Mark start of refresh
+            
             _uiState.update { it.copy(
                 isLoading = true, 
                 error = null, 
@@ -329,6 +336,9 @@ class HomeViewModel @Inject constructor(
             
             val summary = "DONE. SMS=${smsList.size}, Valid=${validTransactions.size}, New=${newTransactions.size}. (Rules Mode: $isRulesMode)"
             Log.d(TAG, summary)
+            
+            isRefreshing = false // Done refreshing
+            
             _uiState.update { 
                 it.copy(
                     debugLog = it.debugLog + "\n\n" + summary,
@@ -340,6 +350,7 @@ class HomeViewModel @Inject constructor(
             
         } catch (e: Exception) {
             Log.e(TAG, "SMS processing failed", e)
+            isRefreshing = false // Error means done
             _uiState.update { 
                 it.copy(
                     isLoading = false, 

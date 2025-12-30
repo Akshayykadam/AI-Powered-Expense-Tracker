@@ -105,32 +105,29 @@ fun InsightsHeroSection(uiState: InsightsUiState) {
         )
 
         // HERO CHART (Bigger & Glassy)
+        val animatedProgress = remember { androidx.compose.animation.core.Animatable(0f) }
+        
+        LaunchedEffect(sortedData) {
+            animatedProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 1000, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+            )
+        }
+
         Box(
             modifier = Modifier.size(280.dp), // Slightly larger
             contentAlignment = Alignment.Center
         ) {
             // Background glow for glass effect
-            Box(
-                modifier = Modifier
-                    .size(200.dp)
-                    .clip(CircleShape)
-                    .background(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                PurplePrimary.copy(alpha = 0.15f),
-                                Color.Transparent
-                            )
-                        )
-                    )
-            )
 
             if (sortedData.isNotEmpty()) {
                 DonutChart(
                     data = sortedData,
                     total = total,
                     colors = colors,
-                    modifier = Modifier.size(280.dp),
-                    thickness = 45.dp // Slightly thicker
+                    modifier = Modifier.size(260.dp),
+                    thickness = 40.dp,
+                    animationProgress = animatedProgress.value
                 )
             }
             
@@ -227,27 +224,16 @@ fun DonutChart(
     total: Double,
     colors: List<Color>,
     modifier: Modifier = Modifier,
-    thickness: Dp = 20.dp
+    thickness: Dp = 20.dp,
+    animationProgress: Float = 1f
 ) {
     var startAngle = -90f
     
-    // Animation state
-    var animationPlayed by remember { mutableStateOf(false) }
-    val progress by animateFloatAsState(
-        targetValue = if (animationPlayed) 1f else 0f,
-        animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
-        label = "chartAnimation"
-    )
-    
-    LaunchedEffect(Unit) {
-        animationPlayed = true
-    }
-    
     Canvas(modifier = modifier) {
-        val totalSweep = 360f * progress
+        val totalSweep = 360f * animationProgress
         
         data.forEachIndexed { index, (_, amount) ->
-            val sweepAngle = ((amount / total) * 360f).toFloat() * progress
+            val sweepAngle = ((amount / total) * 360f).toFloat() * animationProgress
             val color = colors.getOrElse(index) { Color.Gray }
             
             drawArc(

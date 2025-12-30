@@ -60,12 +60,16 @@ class SmsParser @Inject constructor() {
             Regex("""bill\s+generated""", RegexOption.IGNORE_CASE),
             
             // Payment/Recharge Status/Confirmation (Often duplicates or purely informational)
-            Regex("""recharge\s+successful""", RegexOption.IGNORE_CASE),
-            Regex("""payment\s+successful""", RegexOption.IGNORE_CASE),
-            Regex("""plan\s+name\s*:""", RegexOption.IGNORE_CASE),
+            Regex("""recharge\s+(?:successful|done|success)""", RegexOption.IGNORE_CASE),
+            Regex("""payment\s+(?:successful|done|success)""", RegexOption.IGNORE_CASE),
+            Regex("""plan\s+(?:name|benefits)\s*:""", RegexOption.IGNORE_CASE),
             Regex("""recharge\s+of\s+.*successful""", RegexOption.IGNORE_CASE),
-            Regex("""recharge\s+done""", RegexOption.IGNORE_CASE),
-            Regex("""transaction\s+successful""", RegexOption.IGNORE_CASE),
+            Regex("""transaction\s+(?:successful|success)""", RegexOption.IGNORE_CASE),
+            Regex("""plans?\s+benefits""", RegexOption.IGNORE_CASE), // Catches "Plan Benefits"
+            Regex("""unlimited\s+(?:data|voice|calls)""", RegexOption.IGNORE_CASE), // Catches "Unlimited 5G Data"
+            Regex("""benefits\s*:""", RegexOption.IGNORE_CASE), // Catches "Benefits :"
+            Regex("""validity\s*[-:]\s*\d+\s*days""", RegexOption.IGNORE_CASE), // Catches "Validity - 70 Days"
+            Regex("""रिचार्ज\s+यशस्वी""", RegexOption.IGNORE_CASE), // Marathi: Recharge Successful
             
             // Balance inquiry
             Regex("""(?:avl|available)\s+(?:bal|balance)\s*(?:is|:)""", RegexOption.IGNORE_CASE),
@@ -107,6 +111,9 @@ class SmsParser @Inject constructor() {
             
             // Payment Requests and Bill Notices (Not Spends)
             Regex("""(?i)bill.*(?:due\s+on|pay\s+within)"""), 
+            Regex("""(?i)bill\s+of\s+.*is\s+due\s+by"""), // Specific BSNL/Utility pattern
+            Regex("""(?i)your\s+bill\s+.*is\s+due"""),
+            Regex("""(?i)please\s+pay\s+your\s+bill"""),
             Regex("""(?i)disconnection\s+notice"""),
             Regex("""(?i)requested\s+money"""),
             Regex("""(?i)on\s+approving"""),
@@ -124,6 +131,14 @@ class SmsParser @Inject constructor() {
             // Use strict regex to avoid blocking transfers TO the user
             Regex("""payment.*received\s+on.*(?:credit\s+card|card\s+account)""", RegexOption.IGNORE_CASE),
             Regex("""amt.*received\s+on.*(?:credit\s+card|card\s+account)""", RegexOption.IGNORE_CASE),
+            
+            // Fraud/Security Alerts (Not Spends)
+            Regex("""unable\s+to\s+confirm\s+txn""", RegexOption.IGNORE_CASE),
+            Regex("""to\s+dispute\s+call""", RegexOption.IGNORE_CASE),
+            Regex("""to\s+unblock\s+call""", RegexOption.IGNORE_CASE),
+            Regex("""if\s+not\s+in\s+india""", RegexOption.IGNORE_CASE),
+            Regex("""did\s+you\s+perform""", RegexOption.IGNORE_CASE),
+            Regex("""transaction\s+alert""", RegexOption.IGNORE_CASE),
         )
         
         // ==================== VALID TRANSACTION PATTERNS (India-specific) ====================
@@ -290,21 +305,16 @@ class SmsParser @Inject constructor() {
     fun parse(sms: RawSms, useStrictRules: Boolean = false): ParseResult {
         val body = sms.body
         
-        // STEP 1: Filter out informational/non-transactional messages
-        // We always filter out known non-transactions to avoid false positives
+        // STEP 1: Mandatory "First Layer" Filter - Must contain transaction keywords
+        // (debited, credited, spent, paid, sent, received, etc.)
+        if (!hasValidTransactionIndicator(body)) {
+             return ParseResult.Failure("No transaction keyword found (First Layer Filter)")
+        }
+
+        // STEP 2: Filter out informational/non-transactional messages
+        // (Now checks specific Ignore patterns like "Recharge Successful", "Bill Due", etc.)
         if (isInformationalMessage(body)) {
             return ParseResult.Failure("Informational message - no transaction")
-        }
-        
-        // STEP 2: Check for valid transaction indicators
-        // In Strict Mode, we require clear indicators (debited/credited/sent/paid)
-        if (useStrictRules) {
-            if (!hasValidTransactionIndicator(body)) {
-                // Double check if context implies transaction (e.g. "Sent Rs 500")
-                if (!hasAmountWithTransactionContext(body)) {
-                    return ParseResult.Failure("No clear transaction indicator")
-                }
-            }
         }
         
         // STEP 3: Extract amount
