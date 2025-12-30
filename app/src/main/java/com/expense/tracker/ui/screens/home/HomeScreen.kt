@@ -94,13 +94,11 @@ fun HomeScreen(
                             )
                         )
                     )
-                    .statusBarsPadding()
-                    .padding(bottom = 12.dp)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 18.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -113,13 +111,13 @@ fun HomeScreen(
                             imageVector = Icons.Default.AccountBalance,
                             contentDescription = null,
                             tint = PurplePrimary,
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(32.dp)
                         )
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = "Expense Tracker",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.ExtraBold,
+                            style = MaterialTheme.typography.headlineSmall,
                             maxLines = 1
                         )
                     }
@@ -134,16 +132,16 @@ fun HomeScreen(
                         
                         // Refresh
                         if (uiState.hasSmsPermission) {
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
                             IconButton(
                                 onClick = { viewModel.refreshSms(context) },
-                                modifier = Modifier.size(32.dp) // Slightly smaller for better balance
+                                modifier = Modifier.size(36.dp)
                             ) {
                                 Icon(
                                     Icons.Default.Refresh,
                                     contentDescription = "Refresh",
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }
