@@ -17,8 +17,8 @@ A **smart, visually stunning** personal finance app for Android that automatical
 *   **💡 Spending Insights**: Get friendly, AI-generated tips and insights based on your recent spending habits directly on the home screen.
 *   **📂 Auto-Categorization**: RAG (Retrieval-Augmented Generation) enhanced categorization that learns from your previous transaction history.
 
-### 🎨 GenZ Aesthetic UI
-*   **✨ Vibrant Theme**: A custom "GenZ" design system featuring deep purples, hot pink accents, and a sleek dark-mode-only interface.
+### 🎨 Aesthetic UI
+*   **✨ Vibrant Theme**: A custom design system featuring deep purples, hot pink accents, and a sleek dark-mode-only interface.
 *   **📊 Premium Visualization**: 
     *   **Heatmap Calendar**: Visualize your spending density using a custom purple-to-pink gradient.
     *   **Interactive Charts**: Real-time spending breakdowns by category with smooth animations.
