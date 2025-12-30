@@ -1,20 +1,26 @@
 package com.expense.tracker.ui.screens.settings
 
-import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.expense.tracker.ui.theme.ThemeMode
+import com.expense.tracker.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,15 +29,12 @@ fun SettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    var showThemeDialog by remember { mutableStateOf(false) }
     var showClearDataDialog by remember { mutableStateOf(false) }
-    var showModeChangeDialog by remember { mutableStateOf(false) }
-    var pendingAiMode by remember { mutableStateOf(false) }
     var showDebugLogs by remember { mutableStateOf(false) }
     
-    // Check model status on load
+    // Check AI status on load
     LaunchedEffect(Unit) {
-        viewModel.checkModelStatus(context)
+        viewModel.checkAiStatus(context)
     }
     
     Scaffold(
@@ -52,152 +55,13 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // AI Model Center (Replaces Appearance)
+            // AI Status Card
             item {
-                SettingsSection(title = "AI Model Center")
+                SettingsSection(title = "AI Engine")
             }
             
             item {
-                val downloadProgress by viewModel.downloadProgress.collectAsState()
-                
-                if (uiState.isModelDownloaded) {
-                    // MODEL READY
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFFE8F5E9) // Light Green
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                tint = Color(0xFF4CAF50),
-                                modifier = Modifier.size(32.dp)
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "AI Model Ready",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF2E7D32)
-                                )
-                                Text(
-                                    text = "Gemma 2B running locally",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = Color(0xFF2E7D32).copy(alpha = 0.8f)
-                                )
-                            }
-                            
-                            IconButton(onClick = { viewModel.deleteModel(context) }) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "Delete Model",
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    // MODEL NOT DOWNLOADED - Download Button
-                    if (downloadProgress.isDownloading) {
-                        // Downloading State
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer
-                            )
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text(
-                                    text = "Downloading AI Model...",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                LinearProgressIndicator(
-                                    progress = { downloadProgress.progress },
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = downloadProgress.progressText,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-                        }
-                    } else if (downloadProgress.error != null) {
-                        // Error State
-                        ErrorMessage(
-                            title = "Download Failed",
-                            message = downloadProgress.error!!,
-                            actionLabel = "Retry Download",
-                            onAction = { viewModel.startModelDownload(context) },
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-                    } else {
-                        // Initial State - Show info and button
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                            )
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.SmartToy, null, tint = MaterialTheme.colorScheme.primary)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "AI Expense Categorization",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Download the Gemma 2B model (~1.2GB) to categorize your expenses privately on your device. No data leaves your phone.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Button(
-                                    onClick = { viewModel.startModelDownload(context) },
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Icon(Icons.Default.CloudDownload, null)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Download Model")
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // Switch for Enabling/Disabling (if downloaded)
-            if (uiState.isModelDownloaded) {
-                item {
-                    SettingsSwitch(
-                        icon = Icons.Default.SmartToy,
-                        title = "Use Local AI",
-                        subtitle = if (uiState.isAiEnabled) "Categorization active" else "Categorization paused",
-                        checked = uiState.isAiEnabled,
-                        onCheckedChange = { 
-                            pendingAiMode = it
-                            showModeChangeDialog = true
-                        }
-                    )
-                }
+                AIStatusCard(isReady = uiState.isModelDownloaded)
             }
             
             // Data Section
@@ -209,14 +73,14 @@ fun SettingsScreen(
                 SettingsItem(
                     icon = Icons.Default.Receipt,
                     title = "Transactions",
-                    subtitle = "${uiState.transactionCount} transactions stored locally",
+                    subtitle = "${uiState.transactionCount} transactions stored",
                     onClick = { }
                 )
             }
             
             item {
                 SettingsItem(
-                    icon = Icons.Default.Delete,
+                    icon = Icons.Default.DeleteForever,
                     title = "Clear All Data",
                     subtitle = "Delete all transactions",
                     onClick = { showClearDataDialog = true }
@@ -233,14 +97,12 @@ fun SettingsScreen(
                 
                 SettingsItem(
                     icon = Icons.Default.Info,
-                    title = "App Version",
+                    title = "Version",
                     subtitle = uiState.appVersion,
                     onClick = { 
                         versionTapCount++
                         if (versionTapCount >= 5) {
-                            showModeChangeDialog = false // Reset other dialogs
-                            // Trigger debug logs
-                            versionTapCount = 0 // Reset
+                            versionTapCount = 0
                             showDebugLogs = true
                         }
                     }
@@ -251,76 +113,23 @@ fun SettingsScreen(
                 SettingsItem(
                     icon = Icons.Default.Security,
                     title = "Privacy",
-                    subtitle = "All data stays on your device. No cloud sync.",
+                    subtitle = "All data stays on device",
                     onClick = { }
                 )
             }
             
-            item { Spacer(modifier = Modifier.height(16.dp)) }
+            item { Spacer(modifier = Modifier.height(24.dp)) }
         }
     }
     
-    // Theme Selection Dialog
-    if (showThemeDialog) {
-        AlertDialog(
-            onDismissRequest = { showThemeDialog = false },
-            title = { Text("Choose Theme") },
-            text = {
-                Column {
-                    ThemeMode.entries.forEach { mode ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    viewModel.setThemeMode(mode)
-                                    showThemeDialog = false
-                                }
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = uiState.themeMode == mode,
-                                onClick = {
-                                    viewModel.setThemeMode(mode)
-                                    showThemeDialog = false
-                                }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                when (mode) {
-                                    ThemeMode.LIGHT -> "Light"
-                                    ThemeMode.DARK -> "Dark"
-                                    ThemeMode.SYSTEM -> "System Default"
-                                }
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showThemeDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-    
-    // Clear Data Confirmation Dialog
+    // Clear Data Dialog
     if (showClearDataDialog) {
         AlertDialog(
             onDismissRequest = { showClearDataDialog = false },
             icon = { Icon(Icons.Default.Warning, contentDescription = null) },
             title = { Text("Clear All Data?") },
             text = { 
-                Column {
-                    Text("This will permanently delete all ${uiState.transactionCount} transactions. This action cannot be undone.")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "💡 After clearing, go to Home and tap the ↻ Refresh button to re-scan SMS.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
+                Text("This will delete all ${uiState.transactionCount} transactions. After clearing, tap Refresh on Home to re-scan SMS.")
             },
             confirmButton = {
                 TextButton(
@@ -340,43 +149,7 @@ fun SettingsScreen(
         )
     }
 
-    // Mode Change Confirmation Dialog
-    if (showModeChangeDialog) {
-        AlertDialog(
-            onDismissRequest = { showModeChangeDialog = false },
-            icon = { Icon(Icons.Default.Warning, contentDescription = null) },
-            title = { Text(if (pendingAiMode) "Enable Local AI?" else "Disable Local AI?") },
-            text = {
-                Column {
-                    Text("Changing the processing mode requires clearing all existing data to prevent conflicts.")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "All ${uiState.transactionCount} existing transactions will be deleted.",
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Do you want to proceed?")
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.setAiEnabled(pendingAiMode)
-                        showModeChangeDialog = false
-                    }
-                ) {
-                    Text("Confirm & Clear Data", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showModeChangeDialog = false }) {
-                Text("Cancel")
-                }
-            }
-        )
-    }
-
+    // Debug Logs Dialog
     if (showDebugLogs) {
         val clipboard = LocalContext.current.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
         DebugLogDialog(
@@ -392,105 +165,109 @@ fun SettingsScreen(
 }
 
 @Composable
+private fun AIStatusCard(isReady: Boolean) {
+    val shape = RoundedCornerShape(16.dp)
+    
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clip(shape)
+            .background(
+                brush = Brush.linearGradient(
+                    colors = if (isReady) {
+                        listOf(CreditGreen.copy(alpha = 0.15f), CreditGreen.copy(alpha = 0.05f))
+                    } else {
+                        listOf(DebitRed.copy(alpha = 0.15f), DebitRed.copy(alpha = 0.05f))
+                    }
+                )
+            )
+            .border(
+                width = 1.dp,
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        if (isReady) CreditGreen.copy(alpha = 0.4f) else DebitRed.copy(alpha = 0.4f),
+                        Color.Transparent
+                    )
+                ),
+                shape = shape
+            )
+            .padding(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = if (isReady) Icons.Default.SmartToy else Icons.Default.CloudOff,
+                contentDescription = null,
+                tint = if (isReady) CreditGreen else DebitRed,
+                modifier = Modifier.size(32.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(
+                    text = if (isReady) "AI Ready" else "AI Offline",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isReady) CreditGreen else DebitRed
+                )
+                Text(
+                    text = if (isReady) "Gemini API + Smart Categorization" else "Add GEMINI_API_KEY to local.properties",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun SettingsSection(title: String) {
     Text(
         text = title,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Bold,
+        color = PurplePrimary,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
     )
 }
 
 @Composable
 private fun SettingsItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     title: String,
     subtitle: String,
     onClick: () -> Unit
 ) {
     ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = { Text(subtitle) },
+        headlineContent = { 
+            Text(
+                text = title,
+                fontWeight = FontWeight.Medium
+            ) 
+        },
+        supportingContent = { 
+            Text(
+                text = subtitle,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            ) 
+        },
         leadingContent = {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(PurplePrimary.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = PurplePrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         },
         modifier = Modifier.clickable(onClick = onClick)
     )
-}
-
-@Composable
-private fun SettingsSwitch(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = { Text(subtitle) },
-        leadingContent = {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        },
-        trailingContent = {
-            Switch(
-                checked = checked,
-                onCheckedChange = onCheckedChange
-            )
-        }
-    )
-}
-
-@Composable
-private fun ErrorMessage(
-    title: String,
-    message: String,
-    actionLabel: String,
-    onAction: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
-        )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Error, null, tint = MaterialTheme.colorScheme.error)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.error,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onErrorContainer
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(
-                onClick = onAction,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error
-                )
-            ) {
-                Text(actionLabel)
-            }
-        }
-    }
 }
 
 @Composable
@@ -501,39 +278,24 @@ private fun DebugLogDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Debug Logs") },
+        title = { Text("Debug Log") },
         text = {
-            Column {
-                Spacer(modifier = Modifier.height(8.dp))
-                Spacer(modifier = Modifier.height(8.dp))
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f, fill = false) // Allow scrolling but constrain height
-                        .heightIn(max = 300.dp)
-                ) {
-                    androidx.compose.foundation.text.selection.SelectionContainer {
-                        androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.padding(8.dp)) {
-                            item {
-                                Text(
-                                    text = log.ifEmpty { "No logs yet." },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                                )
-                            }
-                        }
-                    }
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 400.dp)
+            ) {
+                item {
+                    Text(
+                        text = log.ifEmpty { "No logs yet" },
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = {
-                onCopy()
-            }) {
-                Text("Copy & Close")
+            TextButton(onClick = onCopy) {
+                Text("Copy")
             }
         },
         dismissButton = {

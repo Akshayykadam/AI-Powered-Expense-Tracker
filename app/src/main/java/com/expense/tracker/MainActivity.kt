@@ -48,7 +48,6 @@ class MainActivity : FragmentActivity() {
             // Get theme settings from SettingsViewModel
             val settingsViewModel: SettingsViewModel = hiltViewModel()
             val themeMode by settingsViewModel.themeMode.collectAsState()
-            val dynamicColor by settingsViewModel.dynamicColor.collectAsState()
             val appLockEnabled by settingsViewModel.appLockEnabled.collectAsState()
             
             // Auth state
@@ -98,8 +97,7 @@ class MainActivity : FragmentActivity() {
             }
             
             ExpenseTrackerTheme(
-                themeMode = themeMode,
-                dynamicColor = dynamicColor
+                themeMode = themeMode
             ) {
                 // Wait for onboarding state to load
                 when (hasCompletedOnboarding) {

@@ -1,6 +1,7 @@
 package com.expense.tracker.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -9,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -21,7 +23,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 /**
- * Card displaying a single transaction with tags
+ * GenZ-styled Transaction Card with glassmorphism
  */
 @Composable
 fun TransactionCard(
@@ -29,126 +31,132 @@ fun TransactionCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null
 ) {
-    val typeColor = if (transaction.isDebit) DebitIndicator else CreditIndicator
+    val typeColor = if (transaction.isDebit) DebitRed else CreditGreen
     val prefix = if (transaction.isDebit) "-" else "+"
-    
-    // Detect payment method from source/description
     val paymentMethod = detectPaymentMethod(transaction.source, transaction.description)
+    val categoryEmoji = getCategoryEmoji(transaction.category)
+    
+    val shape = RoundedCornerShape(16.dp)
     
     Card(
         modifier = modifier.fillMaxWidth(),
         onClick = onClick ?: {},
-        enabled = onClick != null
+        enabled = onClick != null,
+        shape = shape,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Category indicator
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(getCategoryColor(transaction.category).copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = getCategoryIcon(transaction.category),
-                    contentDescription = transaction.category.displayName,
-                    tint = getCategoryColor(transaction.category),
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            
-            Spacer(modifier = Modifier.width(12.dp))
-            
-            // Transaction details
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                // Title
-                Text(
-                    text = transaction.merchant ?: transaction.description?.take(30) ?: transaction.category.displayName,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                
-                Spacer(modifier = Modifier.height(4.dp))
-                
-                // Tags row
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Payment method tag
-                    TransactionTag(
-                        text = paymentMethod.label,
-                        color = paymentMethod.color
-                    )
-                    
-                    // Category tag
-                    TransactionTag(
-                        text = transaction.category.displayName,
-                        color = getCategoryColor(transaction.category)
-                    )
-                    
-                    // Source tag (bank/wallet)
-                    if (transaction.source.isNotBlank() && transaction.source.length <= 10) {
-                        TransactionTag(
-                            text = transaction.source,
-                            color = Color(0xFF868E96)
+                .background(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            getCategoryColor(transaction.category).copy(alpha = 0.08f),
+                            Color.Transparent
                         )
-                    }
+                    )
+                )
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f),
+                    shape = shape
+                )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Emoji category indicator
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(getCategoryColor(transaction.category).copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = categoryEmoji,
+                        fontSize = 22.sp
+                    )
                 }
                 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.width(14.dp))
                 
-                // Time
-                Text(
-                    text = formatTime(transaction.timestamp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                )
-            }
-            
-            // Amount
-            Column(
-                horizontalAlignment = Alignment.End
-            ) {
-                Text(
-                    text = "$prefix₹${formatAmount(transaction.amount)}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = typeColor
-                )
-                Text(
-                    text = if (transaction.isDebit) "Spent" else "Received",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = typeColor.copy(alpha = 0.7f)
-                )
+                // Transaction details
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = transaction.merchant ?: transaction.description?.take(25) ?: transaction.category.displayName,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    // Tags row with modern pills
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        ModernTag(
+                            text = paymentMethod.label,
+                            color = paymentMethod.color
+                        )
+                        ModernTag(
+                            text = transaction.category.displayName,
+                            color = getCategoryColor(transaction.category)
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    Text(
+                        text = formatTime(transaction.timestamp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
+                
+                // Amount with type indicator
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "$prefix₹${formatAmount(transaction.amount)}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = typeColor
+                    )
+                    Text(
+                        text = if (transaction.isDebit) "Spent" else "Received",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = typeColor.copy(alpha = 0.6f)
+                    )
+                }
             }
         }
     }
 }
 
 /**
- * Small colored tag for transaction metadata
+ * Modern pill-shaped tag
  */
 @Composable
-fun TransactionTag(
+fun ModernTag(
     text: String,
     color: Color,
     modifier: Modifier = Modifier
 ) {
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(4.dp))
-            .background(color.copy(alpha = 0.15f))
-            .padding(horizontal = 6.dp, vertical = 2.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(color.copy(alpha = 0.12f))
+            .padding(horizontal = 8.dp, vertical = 3.dp)
     ) {
         Text(
             text = text,
@@ -160,42 +168,66 @@ fun TransactionTag(
     }
 }
 
-/**
- * Payment method with color
- */
+// Legacy alias
+@Composable
+fun TransactionTag(
+    text: String,
+    color: Color,
+    modifier: Modifier = Modifier
+) = ModernTag(text, color, modifier)
+
 data class PaymentMethod(val label: String, val color: Color)
 
-/**
- * Detect payment method from source and description
- */
 private fun detectPaymentMethod(source: String, description: String?): PaymentMethod {
     val text = "${source} ${description ?: ""}".uppercase()
     
     return when {
         text.contains("UPI") || text.contains("GPAY") || text.contains("PHONEPE") || 
         text.contains("PAYTM") || text.contains("BHIM") -> 
-            PaymentMethod("UPI", Color(0xFF5C6BC0))
+            PaymentMethod("UPI", PurplePrimary)
         
         text.contains("CREDIT") || text.contains("CC") -> 
-            PaymentMethod("Credit Card", Color(0xFFEF5350))
+            PaymentMethod("Credit Card", AccentPink)
         
         text.contains("DEBIT") || text.contains("DC") || text.contains("ATM") -> 
-            PaymentMethod("Debit Card", Color(0xFF42A5F5))
+            PaymentMethod("Debit Card", AccentCyan)
         
         text.contains("NEFT") || text.contains("RTGS") || text.contains("IMPS") -> 
-            PaymentMethod("Bank Transfer", Color(0xFF26A69A))
+            PaymentMethod("Bank Transfer", CategoryTransfers)
         
         text.contains("CASH") -> 
-            PaymentMethod("Cash", Color(0xFF66BB6A))
+            PaymentMethod("Cash", CreditGreen)
         
         text.contains("EMI") -> 
-            PaymentMethod("EMI", Color(0xFFFF7043))
+            PaymentMethod("EMI", CategoryEntertainment)
         
         text.contains("WALLET") -> 
-            PaymentMethod("Wallet", Color(0xFFAB47BC))
+            PaymentMethod("Wallet", PurpleSecondary)
         
-        else -> PaymentMethod("Bank", Color(0xFF78909C))
+        else -> PaymentMethod("Bank", Color(0xFF6B7280))
     }
+}
+
+private fun getCategoryEmoji(category: Category): String = when (category) {
+    Category.FOOD_DINING -> "🍔"
+    Category.GROCERY -> "🛒"
+    Category.FUEL -> "⛽"
+    Category.MEDICAL -> "💊"
+    Category.UTILITIES -> "💡"
+    Category.RENT -> "🏠"
+    Category.FASHION -> "👗"
+    Category.ENTERTAINMENT -> "🎮"
+    Category.TRAVEL -> "✈️"
+    Category.SUBSCRIPTIONS -> "📺"
+    Category.EMI_LOAN -> "💳"
+    Category.CREDIT_CARD -> "💳"
+    Category.INSURANCE -> "🛡️"
+    Category.INVESTMENTS -> "📈"
+    Category.UPI_TRANSFER -> "📱"
+    Category.BANK_TRANSFER -> "🏦"
+    Category.INCOME -> "💰"
+    Category.EDUCATION -> "📚"
+    Category.OTHER -> "📝"
 }
 
 private fun formatTime(timestamp: Long): String {
@@ -203,10 +235,8 @@ private fun formatTime(timestamp: Long): String {
     return sdf.format(Date(timestamp))
 }
 
-private fun formatAmount(amount: Double): String {
-    return when {
-        amount >= 100000 -> String.format("%.1fL", amount / 100000)
-        amount >= 1000 -> String.format("%.1fK", amount / 1000)
-        else -> String.format("%.0f", amount)
-    }
+private fun formatAmount(amount: Double): String = when {
+    amount >= 100000 -> String.format("%.1fL", amount / 100000)
+    amount >= 1000 -> String.format("%.1fK", amount / 1000)
+    else -> String.format("%.0f", amount)
 }

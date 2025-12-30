@@ -23,6 +23,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.expense.tracker.ui.theme.PurplePrimary
+import com.expense.tracker.ui.theme.AccentPink
 import com.expense.tracker.domain.model.Transaction
 import com.expense.tracker.domain.model.TransactionType
 import com.expense.tracker.ui.components.TransactionCard
@@ -60,6 +62,7 @@ fun CalendarScreen(
         ) {
             // Month Navigation
             item {
+                Spacer(modifier = Modifier.height(16.dp))
                 MonthNavigator(
                     currentMonth = uiState.currentMonth,
                     currentYear = uiState.currentYear,
@@ -259,13 +262,13 @@ private fun CalendarDay(
     // Calculate heat intensity (0.0 to 1.0)
     val intensity = if (maxSpending > 0) (spending / maxSpending).coerceIn(0.0, 1.0) else 0.0
     
-    // Heat map colors
+    // Heat map colors - GenZ Theme
     val heatColor = when {
         spending == 0.0 -> Color.Transparent
-        intensity < 0.25 -> Color(0xFF81C784).copy(alpha = 0.5f) // Light green
-        intensity < 0.5 -> Color(0xFFFFEB3B).copy(alpha = 0.6f)  // Yellow
-        intensity < 0.75 -> Color(0xFFFF9800).copy(alpha = 0.7f) // Orange
-        else -> Color(0xFFE53935).copy(alpha = 0.8f)             // Red
+        intensity < 0.25 -> PurplePrimary.copy(alpha = 0.2f)
+        intensity < 0.5 -> PurplePrimary.copy(alpha = 0.5f)
+        intensity < 0.75 -> AccentPink.copy(alpha = 0.6f)
+        else -> AccentPink.copy(alpha = 0.9f)
     }
     
     val backgroundColor by animateColorAsState(
@@ -325,10 +328,10 @@ private fun HeatMapLegend() {
         Spacer(modifier = Modifier.width(8.dp))
         
         listOf(
-            Color(0xFF81C784).copy(alpha = 0.5f),
-            Color(0xFFFFEB3B).copy(alpha = 0.6f),
-            Color(0xFFFF9800).copy(alpha = 0.7f),
-            Color(0xFFE53935).copy(alpha = 0.8f)
+            PurplePrimary.copy(alpha = 0.2f),
+            PurplePrimary.copy(alpha = 0.5f),
+            AccentPink.copy(alpha = 0.6f),
+            AccentPink.copy(alpha = 0.9f)
         ).forEach { color ->
             Box(
                 modifier = Modifier

@@ -17,8 +17,10 @@ data class HomeUiState(
     val hasSmsPermission: Boolean = false,
     val error: String? = null,
     
-    // Model status
+    // AI Status
     val isModelDownloaded: Boolean = false,
+    val aiInsight: String? = null,
+    val isLoadingInsight: Boolean = false,
     
     // Debugging
     val processingMode: String = "RULES",

@@ -44,25 +44,14 @@ class InsightsViewModel @Inject constructor(
             
             _uiState.update { it.copy(isGeneratingInsight = true) }
             
-            val currentTotals = _uiState.value.categoryTotals
-            val periodLabel = when (_uiState.value.selectedPeriod) {
-                Period.DAY -> "today"
-                Period.WEEK -> "this week"
-                Period.MONTH -> "this month"
-                Period.YEAR -> "this year"
-            }
-            
-            val result = localAIService.generateInsight(
-                categoryTotals = currentTotals,
-                periodLabel = periodLabel
-            )
+            val result = localAIService.generateInsight()
             
             _uiState.update { current ->
                 current.copy(
                     isGeneratingInsight = false,
-                    observation = result?.observation ?: "AI insight not available yet. Feature coming soon.",
-                    comparison = result?.comparison,
-                    suggestion = result?.suggestion
+                    observation = result ?: "AI insight not available yet. Feature coming soon.",
+                    comparison = null,
+                    suggestion = null
                 )
             }
         }

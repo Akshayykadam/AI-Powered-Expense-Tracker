@@ -116,8 +116,8 @@ dependencies {
     // WorkManager for background downloads
     implementation(libs.workmanager)
     
-    // MediaPipe GenAI for on-device LLM inference (Google AI Edge)
-    implementation(libs.mediapipe.genai)
+    // Gemini Generative AI SDK
+    implementation(libs.generative.ai)
     
     // Testing
     testImplementation(libs.junit)

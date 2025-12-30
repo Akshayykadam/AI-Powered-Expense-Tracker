@@ -28,7 +28,7 @@ class UserPreferencesRepository @Inject constructor(
         val IS_AI_ENABLED = booleanPreferencesKey("is_ai_enabled")
     }
     
-    // Get AI Enabled status (default to false until explicitly enabled)
+    // Get AI Enabled status (default to TRUE - always use AI for best results)
     val isAiEnabled: Flow<Boolean> = dataStore.data
         .catch { exception ->
             if (exception is IOException) {
@@ -39,7 +39,7 @@ class UserPreferencesRepository @Inject constructor(
             }
         }
         .map { preferences ->
-            preferences[PreferencesKeys.IS_AI_ENABLED] ?: false
+            preferences[PreferencesKeys.IS_AI_ENABLED] ?: true  // Default to AI enabled
         }
         
     // Save AI Enabled status

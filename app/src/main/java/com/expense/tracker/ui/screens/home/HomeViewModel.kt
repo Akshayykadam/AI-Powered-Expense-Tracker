@@ -5,15 +5,11 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.expense.tracker.data.local.ai.DownloadProgress
 import com.expense.tracker.data.local.ai.LocalAIService
-import com.expense.tracker.data.local.ai.ModelDownloadManager
-import com.expense.tracker.data.local.categorization.CategorizationSource
 import com.expense.tracker.data.local.categorization.MerchantCategorizer
 import com.expense.tracker.data.local.sms.ParseResult
 import com.expense.tracker.data.local.sms.SmsParser
 import com.expense.tracker.data.local.sms.SmsReader
-import com.expense.tracker.domain.model.Category
 import com.expense.tracker.domain.model.Transaction
 import com.expense.tracker.domain.model.TransactionType
 import com.expense.tracker.domain.repository.ITransactionRepository
@@ -35,7 +31,6 @@ class HomeViewModel @Inject constructor(
     private val smsReader: SmsReader,
     private val smsParser: SmsParser,
     private val merchantCategorizer: MerchantCategorizer,
-    private val modelDownloadManager: ModelDownloadManager,
     private val localAIService: LocalAIService,
     private val userPreferencesRepository: com.expense.tracker.data.repository.UserPreferencesRepository,
     private val debugLogRepository: com.expense.tracker.data.repository.DebugLogRepository
@@ -43,8 +38,6 @@ class HomeViewModel @Inject constructor(
     
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
-    
-    val downloadProgress: StateFlow<DownloadProgress> = modelDownloadManager.downloadProgress
     
     init {
         loadData()
@@ -64,12 +57,6 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
-    
-    // ... loadData ...
-
-    // ... checkModelStatus ...
-    
-    // ... startModelDownload ...
     
     fun toggleProcessingMode() {
         // Now controlled by Settings basically, but for dev toggle in debug:
@@ -135,76 +122,20 @@ class HomeViewModel @Inject constructor(
     fun checkModelStatus(context: Context) {
         viewModelScope.launch {
             try {
-                val isDownloaded = modelDownloadManager.isModelDownloaded(context)
-                _uiState.update { it.copy(isModelDownloaded = isDownloaded) }
-                
-                if (isDownloaded) {
-                    // Start AI only if explicitly in HYBRID mode
-                    if (_uiState.value.processingMode == "HYBRID") {
-                        val ready = localAIService.initialize(context)
-                        Log.d(TAG, "AI initialization result: $ready")
-                        
-                        if (ready && _uiState.value.hasSmsPermission) {
-                            debugLogRepository.appendLog("AI initialized successfully. Starting SMS processing...")
-                            refreshSms(context)
-                        } else if (!ready) {
-                             val errorMsg = "AI failed to initialize. Check model file."
-                             Log.e(TAG, errorMsg)
-                             debugLogRepository.appendLog("ERROR: $errorMsg")
-                             _uiState.update { it.copy(error = errorMsg) }
-                             // Don't auto-disable - let user retry
-                        }
-                    } else {
-                        // Rules mode: Skip AI Init
-                         Log.d(TAG, "Model ready but in RULES mode. Skipping AI init.")
-                         if (_uiState.value.hasSmsPermission) {
-                             refreshSms(context)
-                         }
-                    }
-                } else {
-                    // Model NOT downloaded
-                    if (_uiState.value.hasSmsPermission && _uiState.value.processingMode == "RULES") {
-                         Log.d(TAG, "Model not present, but in RULES mode. Starting Rule-based processing.")
-                         refreshSms(context)
-                    } else if (_uiState.value.processingMode == "HYBRID") {
-                        // In Hybrid but no model? Should revert to rules or prompt download.
-                        // For stability, let's revert to rules if model is missing but referenced as Hybrid
-                         Log.w(TAG, "In HYBRID mode but model missing. Reverting to RULES.")
-                         userPreferencesRepository.setAiEnabled(false)
-                         _uiState.update { it.copy(processingMode = "RULES") }
-                         refreshSms(context)
-                    }
+                val isReady = localAIService.initialize(context)
+                _uiState.update { it.copy(isModelDownloaded = isReady) } // Reuse flag for API Ready
+
+                if (isReady && _uiState.value.processingMode == "HYBRID" && _uiState.value.hasSmsPermission) {
+                     debugLogRepository.appendLog("Gemini AI Ready. Starting SMS processing...")
+                     refreshSms(context)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Critical error in checkModelStatus", e)
-                // Emergency fallback
-                userPreferencesRepository.setAiEnabled(false)
-                _uiState.update { it.copy(processingMode = "RULES", error = "Critical system error. AI disabled.") }
+                Log.e(TAG, "Error in checkModelStatus", e)
             }
         }
     }
     
-    /**
-     * Start model download - uses viewModelScope to survive configuration changes
-     */
-    fun startModelDownload(context: Context) {
-        viewModelScope.launch {
-            try {
-                modelDownloadManager.startDownload(context)
-                
-                // After download complete, initialize AI and reprocess
-                if (modelDownloadManager.downloadProgress.value.isComplete) {
-                    _uiState.update { it.copy(isModelDownloaded = true) }
-                    localAIService.initialize(context)
-                    
-                    // Clear and reprocess with AI
-                    reprocessWithAI(context)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Download failed", e)
-            }
-        }
-    }
+    // Removed startModelDownload
     
     // Old toggleProcessingMode removed in favor of preference-based toggle
     
@@ -231,18 +162,14 @@ class HomeViewModel @Inject constructor(
                  Log.d(TAG, "HYBRID Mode: Checking AI status...")
                  if (!localAIService.isReady()) {
                     Log.d(TAG, "AI not ready, attempting to initialize...")
-                    val initialized = localAIService.initialize(context)
-                    if (!initialized) {
-                        val errorMsg = "Failed to initialize AI on refresh. Model might be corrupted."
-                        Log.e(TAG, errorMsg)
-                        debugLogRepository.appendLog("ERROR: $errorMsg")
-                        _uiState.update { 
-                            it.copy(error = errorMsg) 
-                        }
-                        // Don't auto-disable - let user retry or fallback manually
-                        return@launch
-                    }
-                    _uiState.update { it.copy(isModelDownloaded = true) }
+                     val initialized = localAIService.initialize(context)
+                     if (!initialized) {
+                         val errorMsg = "Failed to initialize Gemini AI. Check API Key."
+                         Log.e(TAG, errorMsg)
+                         _uiState.update { it.copy(error = errorMsg) }
+                         return@launch
+                     }
+                     _uiState.update { it.copy(isModelDownloaded = true) } // Reuse flag
                 }
             } else {
                  Log.d(TAG, "RULES Mode: Skipping AI initialization")
@@ -383,7 +310,7 @@ class HomeViewModel @Inject constructor(
      * Check if using AI or rule-based
      */
     fun isUsingAI(): Boolean {
-        return _uiState.value.isModelDownloaded && localAIService.isReady()
+        return localAIService.isReady()
     }
     
 
@@ -421,5 +348,37 @@ class HomeViewModel @Inject constructor(
         val endOfDay = calendar.timeInMillis
         
         return startOfDay to endOfDay
+    }
+    
+    /**
+     * Fetch AI-generated insight for the home widget
+     */
+    fun fetchAIInsight() {
+        if (!localAIService.isReady()) {
+            _uiState.update { it.copy(aiInsight = "Enable AI in Settings to get spending insights ✨") }
+            return
+        }
+        
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingInsight = true) }
+            
+            try {
+                val insight = localAIService.generateInsight()
+                _uiState.update { 
+                    it.copy(
+                        aiInsight = insight ?: "Looking good! Keep tracking your expenses 💰",
+                        isLoadingInsight = false
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to generate insight", e)
+                _uiState.update { 
+                    it.copy(
+                        aiInsight = "Couldn't generate insight. Try again later.",
+                        isLoadingInsight = false
+                    )
+                }
+            }
+        }
     }
 }
