@@ -67,7 +67,3 @@ A **smart, visually stunning** personal finance app for Android that automatical
 4.  **APK**: ABI Splitting is enabled. Find the architecture-specific APK in `app/build/outputs/apk/release/` (e.g., `app-arm64-v8a-release.apk`).
 
 ---
-
-## 📄 License
-
-Developed as part of an MBA Final Year Project by **Namita Kadam**. Created for educational purposes to demonstrate modern Android development and AI integration.
