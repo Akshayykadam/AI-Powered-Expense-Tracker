@@ -1,4 +1,4 @@
-# 💰 AI-Powered Expense Tracker (GenZ Edition)
+# 💰 AI-Powered Expense Tracker
 
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF.svg?style=for-the-badge&logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-Material3-4285F4?style=for-the-badge&logo=android&logoColor=white)
