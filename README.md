@@ -1,11 +1,8 @@
 # 💰 AI-Powered Expense Tracker
+# TxnSense 💰
+### AI-Powered Expense Tracker (Android)
 
-![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF.svg?style=for-the-badge&logo=kotlin&logoColor=white)
-![Compose](https://img.shields.io/badge/Jetpack%20Compose-Material3-4285F4?style=for-the-badge&logo=android&logoColor=white)
-![AI](https://img.shields.io/badge/AI-Gemini%20Cloud-FF6F00?style=for-the-badge&logo=google-gemini&logoColor=white)
-![Design](https://img.shields.io/badge/Design-%20Aesthetic-FF1493?style=for-the-badge&logo=visual-studio-code&logoColor=white)
-
-A **smart, visually stunning** personal finance app for Android that automatically tracks expenses from your SMS messages using **Google Gemini AI** and **Smart JSON Parsers**. Designed with a vibrant, modern aesthetic for the digital-native generation.
+**TxnSense** is a modern, privacy-first Android application that automatically tracks your expenses by parsing SMS notifications on your device. Powered by Google's **Gemini Nano**, it intelligently categorizes transactions without sending your personal data to any external server. Designed with a vibrant, modern aesthetic for the digital-native generation.
 
 > **🔒 Privacy First:** Your data is processed securely. The app uses AI to interpret complex spending patterns while keeping your financial history organized and accessible.
 

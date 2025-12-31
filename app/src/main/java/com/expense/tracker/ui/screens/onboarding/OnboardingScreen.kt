@@ -70,11 +70,19 @@ fun OnboardingScreen(
             .background(MaterialTheme.colorScheme.background)
             .padding(24.dp)
     ) {
-        // Skip button
+        // Header
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            Text(
+                text = "TxnSense",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            
             TextButton(onClick = onComplete) {
                 Text("Skip")
             }

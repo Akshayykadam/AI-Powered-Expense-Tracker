@@ -105,7 +105,7 @@ class BiometricAuthManager(private val context: Context) {
         val biometricPrompt = BiometricPrompt(activity, executor, callback)
         
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Unlock Expense Tracker")
+            .setTitle("Unlock TxnSense")
             .setSubtitle("Verify your identity to access your financial data")
             .setAllowedAuthenticators(allowedAuthenticators)
             .build()

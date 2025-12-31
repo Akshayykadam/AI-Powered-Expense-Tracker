@@ -51,7 +51,7 @@ fun LockScreen(
                 Spacer(modifier = Modifier.height(24.dp))
                 
                 Text(
-                    text = "Expense Tracker",
+                    text = "TxnSense",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground

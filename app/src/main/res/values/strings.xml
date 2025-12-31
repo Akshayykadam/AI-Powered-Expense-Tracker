@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Expense Tracker</string>
+    <string name="app_name">TxnSense</string>
     
     <!-- Permission Rationales -->
     <string name="sms_permission_title">SMS Permission Required</string>

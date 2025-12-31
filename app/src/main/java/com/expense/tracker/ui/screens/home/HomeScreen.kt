@@ -117,7 +117,7 @@ fun HomeScreen(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = "Expense Tracker",
+                            text = "TxnSense",
                             fontWeight = FontWeight.ExtraBold,
                             style = MaterialTheme.typography.headlineSmall,
                             maxLines = 1

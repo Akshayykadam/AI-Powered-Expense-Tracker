@@ -25,6 +25,7 @@ import com.expense.tracker.ui.theme.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
+    onBackClick: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -32,9 +33,10 @@ fun SettingsScreen(
     var showClearDataDialog by remember { mutableStateOf(false) }
     var showDebugLogs by remember { mutableStateOf(false) }
     
-    // Check AI status on load
+    // Check AI status and Updates on load
     LaunchedEffect(Unit) {
         viewModel.checkAiStatus(context)
+        viewModel.checkForUpdates()
     }
     
     Scaffold(
@@ -46,6 +48,14 @@ fun SettingsScreen(
                         fontWeight = FontWeight.Bold
                     ) 
                 },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                },
                 windowInsets = WindowInsets(0.dp)
             )
         }
@@ -55,10 +65,11 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // AI Status Card
             item {
                 SettingsSection(title = "AI Engine")
             }
+            
+
             
             item {
                 AIStatusCard(isReady = uiState.isModelDownloaded)
@@ -116,6 +127,19 @@ fun SettingsScreen(
                     subtitle = "All data stays on device",
                     onClick = { }
                 )
+            }
+            
+            item { Spacer(modifier = Modifier.height(24.dp)) }
+            
+            // UPDATE Section
+            item {
+                if (uiState.updateAvailable || uiState.isCheckingForUpdate || uiState.isDownloading) {
+                    SettingsSection(title = "Updates")
+                    UpdateStatusCard(
+                        uiState = uiState,
+                        onDownloadClick = { viewModel.downloadUpdate(context) }
+                    )
+                }
             }
             
             item { Spacer(modifier = Modifier.height(24.dp)) }
@@ -304,4 +328,198 @@ private fun DebugLogDialog(
             }
         }
     )
+}
+@Composable
+fun UpdateStatusCard(
+    uiState: SettingsUiState,
+    onDownloadClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(16.dp)
+    val isDownloading = uiState.isDownloading
+    var expanded by remember { mutableStateOf(false) }
+    
+    // Process markdown lines
+    val notesLines = remember(uiState.releaseNotes) {
+        uiState.releaseNotes.lines().map { it.trim() }.filter { it.isNotEmpty() }
+    }
+    
+    val shouldTruncate = notesLines.size > 4
+    val visibleLines = if (expanded || !shouldTruncate) notesLines else notesLines.take(4)
+    
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clip(shape)
+            .background(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        PurplePrimary.copy(alpha = 0.15f),
+                        AccentCyan.copy(alpha = 0.05f)
+                    )
+                )
+            )
+            .border(
+                width = 1.dp,
+                brush = Brush.linearGradient(
+                    colors = listOf(PurplePrimary.copy(alpha = 0.4f), Color.Transparent)
+                ),
+                shape = shape
+            )
+            .padding(16.dp)
+    ) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.SystemUpdate,
+                    contentDescription = null,
+                    tint = PurplePrimary,
+                    modifier = Modifier.size(28.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = when {
+                            isDownloading -> "Downloading Update..."
+                            uiState.updateAvailable -> "Update Available"
+                            else -> "Checking for Update..."
+                        },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = PurplePrimary
+                    )
+                    if (uiState.updateAvailable && !isDownloading) {
+                        Text(
+                            text = "Version ${uiState.latestVersion}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+            
+            if (uiState.updateAvailable) {
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                if (notesLines.isNotEmpty()) {
+                    Text(
+                        text = "What's New:",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = PurplePrimary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        visibleLines.forEach { line ->
+                            MarkdownLine(line)
+                        }
+                    }
+                    
+                    if (shouldTruncate) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = if (expanded) "See Less" else "See More",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = PurplePrimary,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .clickable { expanded = !expanded }
+                                .padding(vertical = 4.dp)
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                if (isDownloading) {
+                    LinearProgressIndicator(
+                        progress = { uiState.downloadProgress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp)),
+                    )
+                    Text(
+                        text = "${(uiState.downloadProgress * 100).toInt()}%",
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.align(Alignment.End)
+                    )
+                } else {
+                    Button(
+                        onClick = onDownloadClick,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary)
+                    ) {
+                        Text("Download & Install")
+                    }
+                }
+            } else if (uiState.isCheckingForUpdate) {
+                Spacer(modifier = Modifier.height(12.dp))
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                )
+            }
+            
+            if (uiState.updateError != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = uiState.updateError,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MarkdownLine(line: String) {
+    val isHeader = line.startsWith("#")
+    val isBullet = line.startsWith("-") || line.startsWith("*")
+    
+    val cleanLine = when {
+        isHeader -> line.trimStart('#', ' ')
+        isBullet -> line.trimStart('-', '*', ' ')
+        else -> line
+    }
+    
+    val annotatedString = parseBoldText(cleanLine)
+    
+    Row(modifier = Modifier.fillMaxWidth()) {
+        if (isBullet) {
+            Text(
+                text = "•",
+                style = MaterialTheme.typography.bodySmall,
+                color = PurplePrimary,
+                modifier = Modifier.padding(end = 8.dp)
+            )
+        }
+        
+        Text(
+            text = annotatedString,
+            style = if (isHeader) MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold) 
+                   else MaterialTheme.typography.bodySmall,
+            color = if (isHeader) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+// Helper to parse **bold** text
+private fun parseBoldText(text: String): androidx.compose.ui.text.AnnotatedString {
+    val parts = text.split("**")
+    return androidx.compose.ui.text.buildAnnotatedString {
+        parts.forEachIndexed { index, part ->
+            if (index % 2 == 1) { // Odd indices are inside ** **
+                pushStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold, color = PurplePrimary))
+                append(part)
+                pop()
+            } else {
+                append(part)
+            }
+        }
+    }
 }

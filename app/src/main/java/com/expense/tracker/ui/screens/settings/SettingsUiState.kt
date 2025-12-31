@@ -13,5 +13,15 @@ data class SettingsUiState(
     val isModelDownloaded: Boolean = false,   // Whether model is downloaded
     val transactionCount: Int = 0,
     val appVersion: String = "1.0.0",
-    val debugLog: String = ""
+    val debugLog: String = "",
+    
+    // Update State
+    val isCheckingForUpdate: Boolean = false,
+    val updateAvailable: Boolean = false,
+    val latestVersion: String = "",
+    val releaseNotes: String = "",
+    val downloadUrl: String = "",
+    val isDownloading: Boolean = false,
+    val downloadProgress: Float = 0f,
+    val updateError: String? = null
 )
